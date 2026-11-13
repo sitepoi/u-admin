@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { signOut, multiFactor, signInWithEmailAndPassword, TotpMultiFactorGenerator } from 'firebase/auth';
 import type { TotpSecret, User, UserCredential } from 'firebase/auth';
 
@@ -36,6 +36,25 @@ export function MfaEnrollForm() {
   const [enrolledUser, setEnrolledUser] = useState<User | null>(null);
   const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null);
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  const [resendAvailableAt, setResendAvailableAt] = useState(0);
+  const [secondsUntilResend, setSecondsUntilResend] = useState(0);
+
+  useEffect(() => {
+    if (resendAvailableAt <= Date.now()) {
+      setSecondsUntilResend(0);
+      return;
+    }
+
+    function updateCountdown(): void {
+      setSecondsUntilResend(
+        Math.max(0, Math.ceil((resendAvailableAt - Date.now()) / 1000)),
+      );
+    }
+
+    updateCountdown();
+    const timer = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAvailableAt]);
 
   async function startTotpEnrolment(user: User): Promise<void> {
     try {
@@ -72,6 +91,7 @@ export function MfaEnrollForm() {
     setTotpSecret(null);
     setEnrolledUser(null);
     setEmailVerificationSent(false);
+    setResendAvailableAt(0);
     setErrorMessage(null);
   }
 
@@ -135,7 +155,7 @@ export function MfaEnrollForm() {
   }
 
   async function handleSendVerificationEmail(): Promise<void> {
-    if (!enrolledUser) return;
+    if (!enrolledUser || resendAvailableAt > Date.now()) return;
 
     setErrorMessage(null);
     setPending(true);
@@ -145,8 +165,24 @@ export function MfaEnrollForm() {
         `${window.location.origin}/mfa-enroll`,
       );
       setEmailVerificationSent(true);
+      // Firebase allows one verification email per minute per user. Block
+      // resends locally so repeated clicks cannot burn the quota.
+      setResendAvailableAt(Date.now() + 60_000);
     } catch (error) {
-      setErrorMessage(describeEnrollmentError(error));
+      const isRateLimit =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: unknown }).code === 'auth/too-many-requests';
+
+      if (isRateLimit) {
+        setResendAvailableAt(Date.now() + 60_000);
+        setErrorMessage(
+          'Firebase allows one verification email per minute. Check the inbox and spam folder for the email already sent, or wait for the countdown before resending.',
+        );
+      } else {
+        setErrorMessage(describeEnrollmentError(error));
+      }
     } finally {
       setPending(false);
     }
@@ -260,12 +296,18 @@ export function MfaEnrollForm() {
           ) : null}
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={handleSendVerificationEmail} disabled={pending}>
+            <Button
+              type="button"
+              onClick={handleSendVerificationEmail}
+              disabled={pending || resendAvailableAt > Date.now()}
+            >
               {pending
                 ? 'Sending...'
-                : emailVerificationSent
-                  ? 'Send the email again'
-                  : 'Send verification email'}
+                : secondsUntilResend > 0
+                  ? `Resend in ${secondsUntilResend}s`
+                  : emailVerificationSent
+                    ? 'Send the email again'
+                    : 'Send verification email'}
             </Button>
             <Button
               type="button"
@@ -279,6 +321,10 @@ export function MfaEnrollForm() {
               Start over
             </Button>
           </div>
+
+          <p className="text-xs text-slate-500">
+            Firebase sends at most one verification email per minute.
+          </p>
         </div>
       ) : null}
 
