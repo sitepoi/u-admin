@@ -19,7 +19,8 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "test:all": "npm run typecheck && npm run test",
-    "set-platform-role": "tsx scripts/set-platform-role.ts"
+    "set-platform-role": "tsx scripts/set-platform-role.ts",
+    "enable-totp-mfa": "node --env-file=.env.local scripts/enable-totp-mfa.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",
