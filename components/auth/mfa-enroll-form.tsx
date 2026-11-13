@@ -8,9 +8,14 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { TextInput } from '@/components/ui/form';
 import { getFirebaseAuthClient } from '@/lib/firebase/client';
-import { describeAuthError, describeEnrollmentError } from '@/lib/firebase/mfa';
+import {
+  describeAuthError,
+  describeEnrollmentError,
+  isUnverifiedEmailError,
+  sendAccountVerificationEmail,
+} from '@/lib/firebase/mfa';
 
-type EnrollmentStep = 'credentials' | 'enroll' | 'done';
+type EnrollmentStep = 'credentials' | 'verify-email' | 'enroll' | 'done';
 
 /**
  * First-time TOTP enrollment. This page never creates a platform session: it
@@ -30,6 +35,45 @@ export function MfaEnrollForm() {
   const [pending, setPending] = useState(false);
   const [enrolledUser, setEnrolledUser] = useState<User | null>(null);
   const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+
+  async function startTotpEnrolment(user: User): Promise<void> {
+    try {
+      // Force a fresh token so a just-completed email verification is visible
+      // to the enrolment endpoint.
+      await user.getIdToken(true);
+
+      const multiFactorSession = await multiFactor(user).getSession();
+      const generatedSecret =
+        await TotpMultiFactorGenerator.generateSecret(multiFactorSession);
+
+      setEnrolledUser(user);
+      setTotpSecret(generatedSecret);
+      setSharedSecret(generatedSecret.secretKey);
+      setStep('enroll');
+    } catch (error) {
+      if (isUnverifiedEmailError(error)) {
+        // Firebase refuses to register a factor for an unverified address.
+        // Show the verification step instead of a dead-end error.
+        setEnrolledUser(user);
+        setErrorMessage(null);
+        setStep('verify-email');
+        return;
+      }
+      setErrorMessage(describeEnrollmentError(error));
+    }
+  }
+
+  function resetFlow(): void {
+    setStep('credentials');
+    setPassword('');
+    setVerificationCode('');
+    setSharedSecret(null);
+    setTotpSecret(null);
+    setEnrolledUser(null);
+    setEmailVerificationSent(false);
+    setErrorMessage(null);
+  }
 
   async function handleCredentialSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -69,14 +113,59 @@ export function MfaEnrollForm() {
         return;
       }
 
-      const multiFactorSession = await multiFactor(credential.user).getSession();
-      const generatedSecret =
-        await TotpMultiFactorGenerator.generateSecret(multiFactorSession);
+      // Refresh so a verification completed in another tab is picked up.
+      try {
+        await credential.user.reload();
+      } catch {
+        // Non-fatal: the enrolment call reports the real problem.
+      }
 
-      setEnrolledUser(credential.user);
-      setTotpSecret(generatedSecret);
-      setSharedSecret(generatedSecret.secretKey);
-      setStep('enroll');
+      if (!credential.user.emailVerified) {
+        setEnrolledUser(credential.user);
+        setStep('verify-email');
+        return;
+      }
+
+      await startTotpEnrolment(credential.user);
+    } catch (error) {
+      setErrorMessage(describeEnrollmentError(error));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleSendVerificationEmail(): Promise<void> {
+    if (!enrolledUser) return;
+
+    setErrorMessage(null);
+    setPending(true);
+    try {
+      await sendAccountVerificationEmail(
+        enrolledUser,
+        `${window.location.origin}/mfa-enroll`,
+      );
+      setEmailVerificationSent(true);
+    } catch (error) {
+      setErrorMessage(describeEnrollmentError(error));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleVerificationContinue(): Promise<void> {
+    if (!enrolledUser) return;
+
+    setErrorMessage(null);
+    setPending(true);
+    try {
+      await enrolledUser.reload();
+      if (!enrolledUser.emailVerified) {
+        setErrorMessage(
+          'This email is still unverified. Open the link in the verification email, then try again.',
+        );
+        return;
+      }
+      await startTotpEnrolment(enrolledUser);
     } catch (error) {
       setErrorMessage(describeEnrollmentError(error));
     } finally {
@@ -105,7 +194,12 @@ export function MfaEnrollForm() {
       setEnrolledUser(null);
       setStep('done');
     } catch (error) {
-      setErrorMessage(describeEnrollmentError(error));
+      if (isUnverifiedEmailError(error)) {
+        setStep('verify-email');
+        setErrorMessage(null);
+      } else {
+        setErrorMessage(describeEnrollmentError(error));
+      }
     } finally {
       setPending(false);
     }
@@ -143,6 +237,49 @@ export function MfaEnrollForm() {
             {pending ? 'Preparing enrolment...' : 'Continue'}
           </Button>
         </form>
+      ) : null}
+
+      {step === 'verify-email' ? (
+        <div className="space-y-4">
+          <Alert tone="warning" title="Verify your email first">
+            Firebase does not allow a second factor on an unverified address. Send the
+            verification email
+            {enrolledUser?.email ? (
+              <>
+                {' '}to <strong>{enrolledUser.email}</strong>
+              </>
+            ) : null}
+            , open the link, then come back to this page.
+          </Alert>
+
+          {emailVerificationSent ? (
+            <Alert tone="success" title="Verification email sent">
+              Check the inbox and spam folder for {enrolledUser?.email ?? 'your address'}. If this
+              page is still open when you return, press &quot;I have verified, continue&quot;.
+            </Alert>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={handleSendVerificationEmail} disabled={pending}>
+              {pending
+                ? 'Sending...'
+                : emailVerificationSent
+                  ? 'Send the email again'
+                  : 'Send verification email'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleVerificationContinue}
+              disabled={pending}
+            >
+              I have verified, continue
+            </Button>
+            <Button type="button" variant="ghost" onClick={resetFlow} disabled={pending}>
+              Start over
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {step === 'enroll' ? (

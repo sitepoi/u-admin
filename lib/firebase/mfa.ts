@@ -6,11 +6,14 @@ import {
   PhoneAuthProvider,
   PhoneMultiFactorGenerator,
   RecaptchaVerifier,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
   TotpMultiFactorGenerator,
+  type ActionCodeSettings,
   type MultiFactorInfo,
   type MultiFactorResolver,
+  type User,
   type UserCredential,
 } from 'firebase/auth';
 
@@ -146,6 +149,48 @@ export async function signOutFirebaseClient(): Promise<void> {
   }
 }
 
+/**
+ * Sends the Firebase account-verification email.
+ *
+ * MFA enrolment is refused for unverified addresses. The continue URL brings
+ * the operator back to the enrolment page, but Firebase only accepts it when
+ * the host is an authorized domain, so a rejection falls back to the default
+ * handler instead of failing the action.
+ */
+export async function sendAccountVerificationEmail(
+  user: User,
+  continueUrl: string,
+): Promise<void> {
+  const actionCodeSettings: ActionCodeSettings = {
+    url: continueUrl,
+    handleCodeInApp: false,
+  };
+
+  try {
+    await sendEmailVerification(user, actionCodeSettings);
+  } catch (error) {
+    if (
+      error instanceof FirebaseError &&
+      (error.code === 'auth/unauthorized-continue-uri' ||
+        error.code === 'auth/invalid-continue-uri')
+    ) {
+      await sendEmailVerification(user);
+      return;
+    }
+    throw error;
+  }
+}
+
+/** True when Firebase refused MFA enrolment because the email is unverified. */
+export function isUnverifiedEmailError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'auth/unverified-email'
+  );
+}
+
 /** Maps Firebase auth errors to safe, user-facing text. */
 export function describeAuthError(error: unknown): string {
   if (error instanceof FirebaseError) {
@@ -166,12 +211,17 @@ export function describeAuthError(error: unknown): string {
         return 'Too many attempts. Wait a few minutes before trying again.';
       case 'auth/user-disabled':
         return 'This account has been disabled.';
+      case 'auth/unverified-email':
+        return 'This account email is not verified. Verify it in Firebase Authentication before signing in.';
       case 'auth/network-request-failed':
         return 'The authentication service could not be reached.';
       case 'auth/invalid-api-key':
         return 'The Firebase Web API key is invalid. Check NEXT_PUBLIC_FIREBASE_API_KEY and redeploy.';
       case 'auth/unauthorized-domain':
         return 'This domain is not authorized in Firebase. Add it under Authentication -> Settings -> Authorized domains.';
+      case 'auth/unauthorized-continue-uri':
+      case 'auth/invalid-continue-uri':
+        return 'Firebase rejected the email return URL. Add this domain under Authentication -> Settings -> Authorized domains.';
       case 'auth/operation-not-allowed':
         return 'This authentication method is not enabled for the Firebase project (auth/operation-not-allowed). Check Authentication -> Sign-in method.';
       case 'auth/configuration-not-found':
@@ -204,6 +254,10 @@ export function describeEnrollmentError(error: unknown): string {
     switch (error.code) {
       case 'auth/operation-not-allowed':
         return 'The Firebase project does not allow authenticator-app enrolment (auth/operation-not-allowed). Enable Identity Platform multi-factor authentication, with the Authenticator app factor, for this project.';
+      case 'auth/unverified-email':
+        return 'MFA requires a verified email. Use "Send verification email" on this page, open the link, then continue.';
+      case 'auth/too-many-requests':
+        return 'Firebase rate-limited this request. Wait a minute, then try again.';
       case 'auth/unsupported-first-factor':
         return 'This project does not allow multi-factor authentication for email/password accounts.';
       case 'auth/unsupported-second-factor':

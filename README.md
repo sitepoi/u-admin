@@ -185,7 +185,10 @@ Register a Web app and copy the four public values into `NEXT_PUBLIC_FIREBASE_*`
    provider disabled.
 2. Upgrade the project to **Identity Platform** (required for TOTP).
 3. Identity Platform -> Multi-factor authentication -> enable **TOTP** and allow
-   enrollment.
+   enrollment. If the console does not expose a TOTP toggle, enable it with
+   `npm run enable-totp-mfa` (reads `PLATFORM_FIREBASE_*`, or set
+   `GOOGLE_APPLICATION_CREDENTIALS`). The script merges TOTP into the existing MFA
+   configuration and never disables other providers.
 4. Optionally configure an SMS factor. The app supports TOTP and SMS; TOTP is
    recommended because it needs no reCAPTCHA.
 
@@ -257,9 +260,15 @@ Without a role claim the user cannot create a session, even with a valid passwor
 
 The first sign-in happens in two steps because a session requires MFA:
 
-1. Open `/mfa-enroll`, sign in with the password, and add the displayed TOTP secret to an
-   authenticator app. No platform session is created by this page.
-2. Open `/login` and sign in normally. Enter the authenticator code when prompted.
+1. Open `/mfa-enroll` and sign in with the password. If Firebase refuses the enrolment
+   because the address is unverified, the page shows a verification step with a
+   **Send verification email** button. Open the link in that email, then press
+   **I have verified, continue**. If the page was reloaded, sign in again.
+2. When the shared secret appears, add it to an authenticator app and enter the 6-digit
+   code.
+3. Open `/login` and sign in normally. Enter the authenticator code when prompted.
+
+The page sends the verification email itself; no Admin SDK script is needed for that.
 
 The enrollment page should only be reachable through the access proxy. Anyone with the
 password could otherwise enrol their own factor, which is why the proxy is a required
@@ -656,6 +665,9 @@ call. Reveal responses are never logged and never cached.
 | Redirect loop to `/login` | Session cookie rejected: check `PLATFORM_FIREBASE_*` and the allowlist |
 | `401 UNAUTHORIZED` after MFA | Email not in `PLATFORM_ADMIN_EMAILS`, or the user has no `platformRole` claim |
 | `403 MFA_REQUIRED` | The Firebase user has no enrolled second factor |
+| `auth/operation-not-allowed` on `/mfa-enroll` | TOTP MFA is not enabled for the project. Enable Identity Platform, then run `npm run enable-totp-mfa` or the REST equivalent |
+| `auth/unverified-email` | The Firebase user's email is not verified. Use **Send verification email** on `/mfa-enroll` and open the link |
+| `auth/unauthorized-continue-uri` | The verification return URL host is not authorized in Firebase. The app falls back to the default handler; add the host to Authentication -> Settings -> Authorized domains |
 | `403 REAUTH_REQUIRED` on reveal | The actor token's `auth_time` is older than 300 seconds |
 | `503 SECRET_API_UNAVAILABLE` | Secret API unreachable, wrong service token, or malformed payload |
 | Reporting shows partial failures | Missing read permission or composite index in a tenant project |
