@@ -20,6 +20,18 @@ import { PLATFORM_ROLES, type PlatformRole } from '@/lib/shared/constants';
 
 type LoginStep = 'credentials' | 'mfa' | 'sms';
 
+/**
+ * The API rejects a valid password sign-in when the token has no second
+ * factor. That is an enrolment problem, not a credential problem, so it needs
+ * a message that tells the operator what to do next.
+ */
+function describeSignInFailure(error: unknown): string {
+  if (error instanceof ApiClientError && error.code === 'MFA_REQUIRED') {
+    return 'This account signed in without a second factor. Open the MFA enrolment page, enrol an authenticator app, then sign in again.';
+  }
+  return describeAuthError(error);
+}
+
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const e2eMode = isClientE2eMode();
   const firebaseConfigured = Boolean(
@@ -77,7 +89,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         setStatusMessage(null);
       }
     } catch (error) {
-      setErrorMessage(describeAuthError(error));
+      setErrorMessage(describeSignInFailure(error));
       setStatusMessage(null);
     } finally {
       setPending(false);
@@ -96,7 +108,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       setStatusMessage('Establishing platform session...');
       await establishSession(result.idToken);
     } catch (error) {
-      setErrorMessage(describeAuthError(error));
+      setErrorMessage(describeSignInFailure(error));
       setStatusMessage(null);
     } finally {
       setPending(false);
@@ -114,7 +126,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       setSmsVerificationId(verificationId);
       setStatusMessage('Enter the 6-digit code sent to your phone.');
     } catch (error) {
-      setErrorMessage(describeAuthError(error));
+      setErrorMessage(describeSignInFailure(error));
       setStatusMessage(null);
     } finally {
       setPending(false);
@@ -133,7 +145,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       setStatusMessage('Establishing platform session...');
       await establishSession(result.idToken);
     } catch (error) {
-      setErrorMessage(describeAuthError(error));
+      setErrorMessage(describeSignInFailure(error));
       setStatusMessage(null);
     } finally {
       setPending(false);
