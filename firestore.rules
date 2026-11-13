@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The Platform Admin app is server-only. Every client SDK read and write is
+    // denied; Firebase Admin bypasses these rules and is the only access path.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

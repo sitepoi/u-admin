@@ -1,0 +1,45 @@
+{
+  "name": "uniconhub-platform-admin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "UniconHub Platform Admin - platform control plane (tenants, secrets metadata, reporting, audit).",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "dev:demo": "node scripts/dev-demo.mjs",
+    "dev:stop": "node scripts/dev-stop.mjs",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest run --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "test:all": "npm run typecheck && npm run test",
+    "set-platform-role": "tsx scripts/set-platform-role.ts"
+  },
+  "dependencies": {
+    "firebase": "^12.19.0",
+    "firebase-admin": "^13.10.0",
+    "next": "16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}
