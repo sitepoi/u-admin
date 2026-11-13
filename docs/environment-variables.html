@@ -1,0 +1,2573 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Environment Variables - UniconHub Platform Admin</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --text: #1e293b;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --panel: #f8fafc;
+        --panel2: #f1f5f9;
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+        --green: #047857;
+        --green-soft: #ecfdf5;
+        --amber: #b45309;
+        --amber-soft: #fffbeb;
+        --rose: #be123c;
+        --rose-soft: #fff1f2;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 1.5rem;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      code,
+      pre {
+        font-family: var(--mono);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        padding: 0.5rem 1rem;
+        background: var(--text);
+        color: #ffffff;
+        z-index: 10;
+      }
+
+      .skip:focus {
+        left: 0;
+      }
+
+      .wrap {
+        width: min(1120px, calc(100% - 2rem));
+        margin: 0 auto;
+      }
+
+      .page-header {
+        border-bottom: 1px solid var(--border);
+        background:
+          radial-gradient(1200px 240px at 10% -40%, #eef2ff 0%, #ffffff 70%);
+        padding: 3.25rem 0 2.25rem;
+      }
+
+      .eyebrow {
+        margin: 0 0 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+      }
+
+      .lede {
+        max-width: 52rem;
+        margin: 0.85rem 0 0;
+        color: var(--muted);
+        font-size: 1.03rem;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 1.4rem;
+        margin: 1.2rem 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .toc {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 0.4rem 1.2rem;
+        margin-top: 1.6rem;
+        padding: 1rem 1.1rem;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        background: var(--panel);
+      }
+
+      .toc a {
+        display: block;
+        padding: 0.22rem 0;
+        font-size: 0.86rem;
+        color: var(--text);
+      }
+
+      .toc a:hover {
+        color: var(--accent);
+      }
+
+      main {
+        padding: 2.2rem 0 4rem;
+      }
+
+      section {
+        margin-top: 2.6rem;
+      }
+
+      h2 {
+        margin: 0 0 0.35rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 1.45rem;
+        letter-spacing: -0.01em;
+      }
+
+      h3 {
+        margin: 1.7rem 0 0.5rem;
+        font-size: 1.08rem;
+      }
+
+      h4 {
+        margin: 1.2rem 0 0.4rem;
+        font-size: 0.96rem;
+      }
+
+      p {
+        margin: 0.55rem 0;
+      }
+
+      ul,
+      ol {
+        margin: 0.5rem 0;
+        padding-left: 1.3rem;
+      }
+
+      li {
+        margin: 0.2rem 0;
+      }
+
+      .sub {
+        margin: 0 0 1rem;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .callout {
+        margin: 1rem 0;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--accent);
+        border-radius: 0.5rem;
+        background: var(--panel);
+      }
+
+      .callout.danger {
+        border-left-color: var(--rose);
+        background: var(--rose-soft);
+      }
+
+      .callout.warn {
+        border-left-color: var(--amber);
+        background: var(--amber-soft);
+      }
+
+      .callout.ok {
+        border-left-color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .callout p:first-child {
+        margin-top: 0;
+      }
+
+      .callout p:last-child {
+        margin-bottom: 0;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 0.9rem;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 0.7rem;
+        background: var(--bg);
+        padding: 0.9rem 1rem;
+      }
+
+      .card h3 {
+        margin: 0 0 0.3rem;
+        font-size: 0.98rem;
+      }
+
+      .card p {
+        margin: 0.25rem 0;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+
+      .table-scroll {
+        overflow-x: auto;
+        margin: 0.9rem 0;
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+        background: var(--bg);
+      }
+
+      caption {
+        caption-side: top;
+        padding: 0.6rem 0.8rem;
+        text-align: left;
+        color: var(--muted);
+        font-size: 0.8rem;
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+      }
+
+      th,
+      td {
+        padding: 0.55rem 0.7rem;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--panel);
+        color: #475569;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      tbody tr:hover {
+        background: #fbfdff;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.08rem 0.45rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        background: var(--panel2);
+        color: #475569;
+      }
+
+      .badge.req {
+        border-color: #fecdd3;
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
+      .badge.opt {
+        background: var(--panel2);
+        color: #475569;
+      }
+
+      .badge.pub {
+        border-color: #c7d2fe;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .badge.sec {
+        border-color: #fecdd3;
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
+      .badge.same {
+        border-color: #a7f3d0;
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .badge.diff {
+        border-color: #fde68a;
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .badge.never {
+        border-color: #fecdd3;
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.9rem;
+        margin: 0.8rem 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.6rem;
+        margin: 1rem 0;
+        padding: 0.7rem 0.8rem;
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        background: var(--panel);
+      }
+
+      .toolbar label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .toolbar input[type="search"] {
+        flex: 1 1 220px;
+        min-width: 160px;
+        padding: 0.42rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 0.4rem;
+        background: #ffffff;
+        font: inherit;
+        font-size: 0.85rem;
+        color: var(--text);
+      }
+
+      .toolbar button {
+        padding: 0.38rem 0.65rem;
+        border: 1px solid var(--border);
+        border-radius: 0.4rem;
+        background: #ffffff;
+        color: var(--text);
+        font: inherit;
+        font-size: 0.78rem;
+        cursor: pointer;
+      }
+
+      .toolbar button:hover {
+        border-color: #c7d2fe;
+        color: var(--accent);
+      }
+
+      .count {
+        font-size: 0.78rem;
+        color: var(--muted);
+        min-width: 90px;
+      }
+
+      .var {
+        margin: 0.55rem 0;
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        background: var(--bg);
+        overflow: hidden;
+      }
+
+      .var > summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.65rem 0.8rem;
+        cursor: pointer;
+        background: var(--panel);
+        list-style: none;
+      }
+
+      .var > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .var > summary::before {
+        content: "+";
+        display: inline-block;
+        width: 1rem;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .var[open] > summary::before {
+        content: "-";
+      }
+
+      .var[open] > summary {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .var > summary code {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .var-body {
+        padding: 0.35rem 0.9rem 0.8rem;
+      }
+
+      .var-body dl {
+        display: grid;
+        grid-template-columns: 10.5rem 1fr;
+        gap: 0.35rem 0.9rem;
+        margin: 0.55rem 0 0;
+        font-size: 0.87rem;
+      }
+
+      .var-body dt {
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .var-body dd {
+        margin: 0;
+      }
+
+      @media (max-width: 620px) {
+        .var-body dl {
+          grid-template-columns: 1fr;
+          gap: 0.1rem;
+        }
+
+        .var-body dt {
+          margin-top: 0.5rem;
+        }
+      }
+
+      .code-block {
+        position: relative;
+        margin: 0.8rem 0;
+        border: 1px solid var(--border);
+        border-radius: 0.55rem;
+        background: var(--panel);
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0.85rem 0.9rem;
+        overflow-x: auto;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        color: #0f172a;
+      }
+
+      .code-block .copy {
+        position: absolute;
+        top: 0.45rem;
+        right: 0.45rem;
+        padding: 0.22rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 0.35rem;
+        background: #ffffff;
+        font: inherit;
+        font-size: 0.7rem;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .code-block .copy:hover {
+        color: var(--accent);
+        border-color: #c7d2fe;
+      }
+
+      .inline {
+        padding: 0.05rem 0.3rem;
+        border: 1px solid var(--border);
+        border-radius: 0.3rem;
+        background: var(--panel2);
+        font-size: 0.82em;
+      }
+
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 1rem 0;
+        padding: 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        background: var(--panel);
+        font-size: 0.8rem;
+      }
+
+      .node {
+        padding: 0.45rem 0.6rem;
+        border: 1px solid #c7d2fe;
+        border-radius: 0.45rem;
+        background: #ffffff;
+        font-weight: 600;
+        color: #312e81;
+      }
+
+      .node.vault {
+        border-color: #fecdd3;
+        color: var(--rose);
+      }
+
+      .arrow {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .small {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .nowrap {
+        white-space: nowrap;
+      }
+
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 1.4rem 0 2.4rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      @media print {
+        .toolbar,
+        .toc,
+        .copy,
+        .skip {
+          display: none !important;
+        }
+
+        .var {
+          break-inside: avoid;
+        }
+
+        .var > summary::before {
+          display: none;
+        }
+
+        a {
+          color: var(--text);
+        }
+
+        body {
+          font-size: 11pt;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="page-header">
+      <div class="wrap">
+        <p class="eyebrow">UniconHub Platform Admin</p>
+        <h1>Environment variables, explained</h1>
+        <p class="lede">
+          Every variable the Admin app reads, where to get its value, what happens when it is
+          wrong, and which values must be identical or deliberately different across the Admin
+          app, the Secret API, the CMS and Vercel.
+        </p>
+        <ul class="meta">
+          <li>Last updated: 2026-11-13</li>
+          <li>Source of truth: <code>lib/server/env.ts</code>, <code>lib/edge/platform-config.ts</code>, <code>.env.example</code></li>
+          <li>36 app variables + 1 Vercel platform variable</li>
+          <li>No real secrets are stored in this document</li>
+        </ul>
+      </div>
+    </header>
+
+    <nav class="toc wrap" aria-label="Contents">
+      <a href="#how-to-read">1. How to read this document</a>
+      <a href="#system-map">2. The system map</a>
+      <a href="#families">3. Variable families</a>
+      <a href="#quick-reference">4. Quick reference</a>
+      <a href="#firebase-identifiers">5. Firebase identifiers, decoded</a>
+      <a href="#detailed">6. Detailed reference</a>
+      <a href="#cross-project">7. Cross-project comparison</a>
+      <a href="#where-to-get">8. Where to get every value</a>
+      <a href="#formats">9. Formats and gotchas</a>
+      <a href="#validate">10. Validate the configuration</a>
+      <a href="#rotation">11. Rotation and blast radius</a>
+      <a href="#templates">12. Copy-paste templates</a>
+      <a href="#faq">13. FAQ</a>
+    </nav>
+
+    <main id="main" class="wrap">
+      <div class="callout danger">
+        <p>
+          <strong>Four values must never exist in this application:</strong>
+          <code>SECRETS_ENC_KEY</code>, <code>SECRETS_FINGERPRINT_KEY</code>,
+          <code>SECRET_API_CMS_ENROLL_TOKEN</code>, <code>SECRET_API_RUNTIME_FETCH_TOKEN</code>.
+        </p>
+        <p class="small">
+          They belong to the Secret API vault, the CMS enrollment flow and the tenant runtime. A
+          source-scan test fails if any of these names appears in this repository.
+        </p>
+      </div>
+
+      <div class="callout ok">
+        <p>
+          <strong>The 30-second version.</strong> Only five values are shared with another system:
+          the Secret API admin token, the Admin Firebase project id (trusted by the Secret API),
+          the CMS system key, Vercel's <code>CRON_SECRET</code>, and the public host. Everything
+          else is Admin-only or must never appear here.
+        </p>
+      </div>
+
+      <section id="how-to-read">
+        <h2>1. How to read this document</h2>
+        <p class="sub">
+          Each variable is classified by exposure and by whether it is required. The same key can
+          have different values in Local, Preview and Production; the relationships in section 7
+          must hold inside each environment.
+        </p>
+
+        <div class="legend">
+          <span><span class="badge req">Required</span> the app cannot serve its main flows without it</span>
+          <span><span class="badge opt">Optional</span> has a default or only affects one feature</span>
+          <span><span class="badge pub">Public</span> safe to ship to the browser</span>
+          <span><span class="badge sec">Secret</span> server-only, never in <code>NEXT_PUBLIC_</code></span>
+          <span><span class="badge same">Same</span> must match another system</span>
+          <span><span class="badge diff">Different</span> must not be reused</span>
+          <span><span class="badge never">Never here</span> must not exist in this app</span>
+        </div>
+
+        <h3>Three environments, one key set</h3>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Environment</th>
+              <th scope="col">Where values live</th>
+              <th scope="col">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Local</td>
+              <td><code>.env.local</code> (gitignored)</td>
+              <td>Loaded by <code>next dev</code>. Restart after edits. The demo command sets its own values.</td>
+            </tr>
+            <tr>
+              <td>Vercel Production</td>
+              <td>Project -> Settings -> Environment Variables</td>
+              <td>Server values are read at runtime. <code>NEXT_PUBLIC_*</code> is inlined at build time.</td>
+            </tr>
+            <tr>
+              <td>Vercel Preview</td>
+              <td>Same UI, Preview scope</td>
+              <td>Preview URLs are different hosts; the host guard rejects them unless you configure a fixed preview host.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <p>
+            <strong>Build-time versus runtime.</strong> Any variable starting with
+            <code>NEXT_PUBLIC_</code> is baked into the JavaScript bundle. Changing it in Vercel
+            does nothing until you create a new deployment. Server variables are read when a
+            request runs, but a redeploy is still the reliable way to apply a full set of changes.
+          </p>
+        </div>
+      </section>
+
+      <section id="system-map">
+        <h2>2. The system map</h2>
+        <p class="sub">
+          The Admin app is one of four systems. The arrows show who holds which credential, and
+          why several similar-looking values must stay separate.
+        </p>
+
+        <div class="flow" role="img" aria-label="Credential flow between browser, Admin app, Secret API, CMS, tenant projects and vault">
+          <span class="node">Browser</span>
+          <span class="arrow">-&gt;</span>
+          <span class="node">Admin app</span>
+          <span class="arrow">-&gt;</span>
+          <span class="node">Admin Firebase project</span>
+          <span class="arrow">|</span>
+          <span class="node">Secret API</span>
+          <span class="arrow">-&gt;</span>
+          <span class="node vault">Vault (ciphertext + master key)</span>
+          <span class="arrow">|</span>
+          <span class="node">CMS system API</span>
+          <span class="arrow">|</span>
+          <span class="node">Tenant projects (read-only)</span>
+          <span class="arrow">|</span>
+          <span class="node">CMS</span>
+          <span class="arrow">-&gt;</span>
+          <span class="node">Secret API (enrollment token)</span>
+          <span class="arrow">|</span>
+          <span class="node">Tenant runtime</span>
+          <span class="arrow">-&gt;</span>
+          <span class="node">Secret API (runtime-fetch token)</span>
+        </div>
+
+        <ul>
+          <li>The browser talks to Firebase Auth directly and to the Admin app. It never calls the Secret API.</li>
+          <li>The Admin app talks to the Secret API server-to-server with a service token, and forwards the operator's fresh Firebase ID token as <code>actorIdToken</code>.</li>
+          <li>The Secret API verifies that actor token itself, so it must trust the Admin Firebase project.</li>
+          <li>The Admin app reads aggregates from tenant projects with a dedicated read-only account.</li>
+          <li>The vault keys never leave the Secret API.</li>
+        </ul>
+      </section>
+
+      <section id="families">
+        <h2>3. Variable families</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Host and access (6)</h3>
+            <p>Which host is served, who may reach it, session lifetime and re-auth window.</p>
+          </div>
+          <div class="card">
+            <h3>Public Firebase (4)</h3>
+            <p>Browser configuration for the Admin Firebase project. Public by design.</p>
+          </div>
+          <div class="card">
+            <h3>Firebase Admin (3)</h3>
+            <p>Server credentials for sessions and the platform Firestore collections.</p>
+          </div>
+          <div class="card">
+            <h3>Secret API client (3)</h3>
+            <p>Where the Secret API lives, the service token, and the request timeout.</p>
+          </div>
+          <div class="card">
+            <h3>CMS (5)</h3>
+            <p>Tenant provisioning endpoint and key, plus generated host suffixes.</p>
+          </div>
+          <div class="card">
+            <h3>Reporting (12)</h3>
+            <p>Read-only cross-tenant account, limits, cron secret and collection mapping.</p>
+          </div>
+          <div class="card">
+            <h3>Demo and E2E (3)</h3>
+            <p>Local-only switches. Refused in production. Never add to Vercel.</p>
+          </div>
+          <div class="card">
+            <h3>Vercel platform (1)</h3>
+            <p><code>CRON_SECRET</code> is read by Vercel, not by the app, and must match the app's cron secret.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="quick-reference">
+        <h2>4. Quick reference</h2>
+        <p class="sub">All 37 names in one place. Use the search box to filter; open section 6 for details.</p>
+
+        <div class="toolbar">
+          <label for="search">Search</label>
+          <input id="search" type="search" placeholder="Name, purpose, or system (for example: firebase, token, cron)" />
+          <span id="search-count" class="count" aria-live="polite"></span>
+          <button id="expand-all" type="button">Expand all</button>
+          <button id="collapse-all" type="button">Collapse all</button>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <caption>Quick reference. "Exposure" describes where the value may appear.</caption>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Variable</th>
+                <th scope="col">Family</th>
+                <th scope="col">Exposure</th>
+                <th scope="col">Required</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-searchable>
+                <td>1</td><td><code>PLATFORM_HOST</code></td><td>Host</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge req">Required</span></td>
+                <td>The only host served. Everything else returns 404.</td>
+              </tr>
+              <tr data-searchable>
+                <td>2</td><td><code>PLATFORM_ALLOWED_DEV_HOSTS</code></td><td>Host</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Extra <code>host:port</code> values accepted in development only.</td>
+              </tr>
+              <tr data-searchable>
+                <td>3</td><td><code>PLATFORM_SESSION_TTL_HOURS</code></td><td>Host</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Session cookie lifetime. Default 8, clamped 1-24.</td>
+              </tr>
+              <tr data-searchable>
+                <td>4</td><td><code>PLATFORM_REVEAL_FRESH_AUTH_SECONDS</code></td><td>Host</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Maximum age of the actor token used for reveal. Default 300.</td>
+              </tr>
+              <tr data-searchable>
+                <td>5</td><td><code>PLATFORM_ADMIN_EMAILS</code></td><td>Host</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge req">Required</span></td>
+                <td>Exact email allowlist on top of Firebase Auth.</td>
+              </tr>
+              <tr data-searchable>
+                <td>6</td><td><code>PLATFORM_IP_ALLOWLIST</code></td><td>Host</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Extra IPv4/CIDR or exact IPv6 gate at the edge.</td>
+              </tr>
+              <tr data-searchable>
+                <td>7</td><td><code>NEXT_PUBLIC_FIREBASE_API_KEY</code></td><td>Public Firebase</td>
+                <td><span class="badge pub">Public</span></td><td><span class="badge req">Required</span></td>
+                <td>Firebase Web API key for the browser SDK.</td>
+              </tr>
+              <tr data-searchable>
+                <td>8</td><td><code>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</code></td><td>Public Firebase</td>
+                <td><span class="badge pub">Public</span></td><td><span class="badge req">Required</span></td>
+                <td>Auth domain, also used in the CSP for Auth and MFA frames.</td>
+              </tr>
+              <tr data-searchable>
+                <td>9</td><td><code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code></td><td>Public Firebase</td>
+                <td><span class="badge pub">Public</span></td><td><span class="badge req">Required</span></td>
+                <td>Admin project id used by the client SDK.</td>
+              </tr>
+              <tr data-searchable>
+                <td>10</td><td><code>NEXT_PUBLIC_FIREBASE_APP_ID</code></td><td>Public Firebase</td>
+                <td><span class="badge pub">Public</span></td><td><span class="badge req">Required</span></td>
+                <td>Web app id.</td>
+              </tr>
+              <tr data-searchable>
+                <td>11</td><td><code>PLATFORM_FIREBASE_PROJECT_ID</code></td><td>Firebase Admin</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge req">Required</span></td>
+                <td>Project whose Auth and Firestore the server uses. Trusted by the Secret API.</td>
+              </tr>
+              <tr data-searchable>
+                <td>12</td><td><code>PLATFORM_FIREBASE_CLIENT_EMAIL</code></td><td>Firebase Admin</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge req">Required</span></td>
+                <td>Service account email from the Admin key JSON.</td>
+              </tr>
+              <tr data-searchable>
+                <td>13</td><td><code>PLATFORM_FIREBASE_PRIVATE_KEY</code></td><td>Firebase Admin</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge req">Required</span></td>
+                <td>Service account private key for the Admin project.</td>
+              </tr>
+              <tr data-searchable>
+                <td>14</td><td><code>SECRET_API_BASE_URL</code></td><td>Secret API</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge req">Required</span></td>
+                <td>Base URL of the Secret API. Server-to-server only.</td>
+              </tr>
+              <tr data-searchable>
+                <td>15</td><td><code>SECRET_API_ADMIN_SERVICE_TOKEN</code></td><td>Secret API</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge req">Required</span></td>
+                <td>Bearer token for Secret API admin endpoints. Shared with the Secret API.</td>
+              </tr>
+              <tr data-searchable>
+                <td>16</td><td><code>SECRET_API_TIMEOUT_MS</code></td><td>Secret API</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Per-request timeout. Default 5000.</td>
+              </tr>
+              <tr data-searchable>
+                <td>17</td><td><code>CMS_SYSTEM_API_BASE_URL</code></td><td>CMS</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge req">Required</span></td>
+                <td>CMS base URL used for tenant creation and enrollment retry.</td>
+              </tr>
+              <tr data-searchable>
+                <td>18</td><td><code>CMS_SYSTEM_API_KEY</code></td><td>CMS</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge req">Required</span></td>
+                <td>CMS system key embedded in the provisioning URL path.</td>
+              </tr>
+              <tr data-searchable>
+                <td>19</td><td><code>CMS_SYSTEM_API_TIMEOUT_MS</code></td><td>CMS</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Provisioning timeout. Default 10000.</td>
+              </tr>
+              <tr data-searchable>
+                <td>20</td><td><code>PLATFORM_CMS_HOST_SUFFIX</code></td><td>CMS</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Suffix for generated CMS hosts. Default <code>cms.uniconhub.com</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>21</td><td><code>PLATFORM_PUBLICWEBSITE_HOST_SUFFIX</code></td><td>CMS</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Suffix for generated website hosts. Default <code>publicwebsite.uniconhub.com</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>22</td><td><code>PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON</code></td><td>Reporting</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge opt">Conditional</span></td>
+                <td>Read-only cross-tenant account. Required only for reporting refresh.</td>
+              </tr>
+              <tr data-searchable>
+                <td>23</td><td><code>PLATFORM_REPORTING_MAX_CONCURRENCY</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Parallel tenant collection. Default 3, clamped 1-10.</td>
+              </tr>
+              <tr data-searchable>
+                <td>24</td><td><code>PLATFORM_REPORTING_TENANT_TIMEOUT_MS</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Per-tenant timeout. Default 10000.</td>
+              </tr>
+              <tr data-searchable>
+                <td>25</td><td><code>PLATFORM_REPORTING_CRON_SECRET</code></td><td>Reporting</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Shared secret for Vercel Cron. Must equal <code>CRON_SECRET</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>26</td><td><code>PLATFORM_REPORTING_OBJECT_COLLECTION</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Objects collection. Default <code>objects</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>27</td><td><code>PLATFORM_REPORTING_OBJECT_TYPE_FIELD</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Object type field. Default <code>objectTypeId</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>28</td><td><code>PLATFORM_REPORTING_API_REQUEST_COLLECTION</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>API request log collection. Default <code>api_requests</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>29</td><td><code>PLATFORM_REPORTING_API_VERSION_FIELD</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>API version field. Default <code>apiVersion</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>30</td><td><code>PLATFORM_REPORTING_FIRST_PARTY_COLLECTION</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>First-party request collection. Default <code>first_party_requests</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>31</td><td><code>PLATFORM_REPORTING_FIRST_PARTY_ERROR_FIELD</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Error flag field. Default <code>isError</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>32</td><td><code>PLATFORM_REPORTING_USERS_COLLECTION</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Users collection. Default <code>users</code>; field <code>lastActiveAt</code> is fixed.</td>
+              </tr>
+              <tr data-searchable>
+                <td>33</td><td><code>PLATFORM_REPORTING_STORAGE_COLLECTION</code></td><td>Reporting</td>
+                <td><span class="badge pub">Server</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Storage usage collection. Default <code>platform_usage</code>, document <code>current</code>.</td>
+              </tr>
+              <tr data-searchable>
+                <td>34</td><td><code>PLATFORM_E2E_MODE</code></td><td>Demo</td>
+                <td><span class="badge sec">Dev only</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Swaps Firebase Auth and Firestore for local test doubles. Refused in production.</td>
+              </tr>
+              <tr data-searchable>
+                <td>35</td><td><code>NEXT_PUBLIC_PLATFORM_E2E_MODE</code></td><td>Demo</td>
+                <td><span class="badge pub">Public</span></td><td><span class="badge opt">Optional</span></td>
+                <td>Shows the test sign-in buttons on <code>/login</code>. Dev only.</td>
+              </tr>
+              <tr data-searchable>
+                <td>36</td><td><code>PLATFORM_E2E_SESSION_SECRET</code></td><td>Demo</td>
+                <td><span class="badge sec">Dev only</span></td><td><span class="badge opt">Optional</span></td>
+                <td>HMAC secret for the local test session cookie. Dev only.</td>
+              </tr>
+              <tr data-searchable>
+                <td>37</td><td><code>CRON_SECRET</code> (Vercel)</td><td>Vercel</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge opt">Conditional</span></td>
+                <td>Vercel's cron header secret. Must equal <code>PLATFORM_REPORTING_CRON_SECRET</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="firebase-identifiers">
+        <h2>5. Firebase identifiers, decoded</h2>
+        <p class="sub">
+          Firebase exposes several values that look similar. Using the wrong one is a common cause
+          of confusing auth errors.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Value</th>
+                <th scope="col">Looks like</th>
+                <th scope="col">Used by</th>
+                <th scope="col">Can it be public?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Project id</td>
+                <td><code>uniconhub-platform-admin</code></td>
+                <td><code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>, <code>PLATFORM_FIREBASE_PROJECT_ID</code>, Secret API trust config</td>
+                <td>Yes. It is an identifier, not a credential.</td>
+              </tr>
+              <tr>
+                <td>Project number</td>
+                <td><code>123456789012</code></td>
+                <td>Sometimes appears inside the app id; not a variable here</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Web API key</td>
+                <td><code>AIza...</code></td>
+                <td><code>NEXT_PUBLIC_FIREBASE_API_KEY</code></td>
+                <td>Yes, by design. Security comes from rules, the allowlist and MFA.</td>
+              </tr>
+              <tr>
+                <td>Web app id</td>
+                <td><code>1:123456789012:web:abcdef</code></td>
+                <td><code>NEXT_PUBLIC_FIREBASE_APP_ID</code></td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Auth domain</td>
+                <td><code>project.firebaseapp.com</code></td>
+                <td><code>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</code></td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td>Service account email</td>
+                <td><code>firebase-adminsdk-xxxxx@project.iam.gserviceaccount.com</code></td>
+                <td><code>PLATFORM_FIREBASE_CLIENT_EMAIL</code></td>
+                <td>Treat as internal. It is not enough without the key.</td>
+              </tr>
+              <tr>
+                <td>Service account private key</td>
+                <td><code>-----BEGIN PRIVATE KEY-----</code></td>
+                <td><code>PLATFORM_FIREBASE_PRIVATE_KEY</code></td>
+                <td><strong>No.</strong> Full control of the project.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="detailed">
+        <h2>6. Detailed reference</h2>
+
+        <h3 id="detailed-host">6.1 Host and access</h3>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_HOST</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Must equal public host</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                The single DNS host the application serves. Middleware compares the request
+                <code>Host</code> header to this value and returns a bare 404 for everything else,
+                including the <code>*.vercel.app</code> URL, preview URLs and every tenant host.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>
+                Vercel -> Settings -> Domains for the domain you attached. For a first smoke test,
+                use the production Vercel host, for example <code>u-admin.vercel.app</code>.
+              </dd>
+              <dt>Format</dt>
+              <dd><code>admin.uniconhub.com</code>. Bare host, no scheme, no path. A port is only for local development.</dd>
+              <dt>Must match</dt>
+              <dd>The exact URL operators open. A mismatch is the most common cause of "Not Found" on Vercel.</dd>
+              <dt>If wrong</dt>
+              <dd>Every route returns 404. Runtime logs contain a warning when it is empty.</dd>
+              <dt>Security note</dt>
+              <dd>This is defense in depth, not a secret. Certificate transparency exposes hostnames.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_ALLOWED_DEV_HOSTS</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+            <span class="badge diff">Local only</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Extra hosts accepted only when <code>NODE_ENV</code> is not <code>production</code>.</dd>
+              <dt>Where to get it</dt>
+              <dd>You choose. Use <code>localhost:3000,127.0.0.1:3000</code> for local development.</dd>
+              <dt>Format</dt>
+              <dd>Comma separated <code>host:port</code> entries. Schemes are stripped if pasted.</dd>
+              <dt>Rule</dt>
+              <dd>Ignored in production. Never rely on it to make a Vercel URL work.</dd>
+              <dt>If wrong</dt>
+              <dd>Local requests return 404. Add the exact <code>host:port</code> and restart.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_SESSION_TTL_HOURS</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Lifetime of the <code>__Host-platform_session</code> cookie. Default 8, clamped to 1-24.</dd>
+              <dt>Where to get it</dt>
+              <dd>Your security policy. There is no external source.</dd>
+              <dt>Tradeoff</dt>
+              <dd>Shorter limits exposure on a lost laptop; longer reduces re-authentication. Reveal always requires a fresh actor token, independent of this value.</dd>
+              <dt>Must match</dt>
+              <dd>Nothing outside this app. It must not exceed the Firebase session cookie maximum, which the clamp already prevents.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_REVEAL_FRESH_AUTH_SECONDS</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Keep at or below Secret API</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                Maximum age of the actor token's <code>auth_time</code> that the Admin app accepts
+                for a reveal. Default 300, clamped to 30-900.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>Your security policy, aligned with the Secret API owner.</dd>
+              <dt>Cross-project rule</dt>
+              <dd>
+                The Secret API independently checks freshness. Set the Admin value lower than or
+                equal to the Secret API window. If the Admin app is looser, reveal fails at the
+                Secret API with a re-authentication error after the operator has already done the
+                work.
+              </dd>
+              <dt>If wrong</dt>
+              <dd>Operators are asked to re-authenticate too often, or a valid session is rejected upstream.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_ADMIN_EMAILS</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Members of Admin Firebase Auth</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                An exact email allowlist checked in addition to Firebase Authentication. A valid
+                Firebase user who is not listed cannot create or keep a session.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>Firebase Authentication -> Users, in the Admin project. Use the emails of current operators.</dd>
+              <dt>Format</dt>
+              <dd>Comma separated, case-insensitive, exact addresses. No wildcards, no domain matching.</dd>
+              <dt>Must match</dt>
+              <dd>The Firebase user emails. If you change an email in Firebase, update this list as well.</dd>
+              <dt>If wrong</dt>
+              <dd>Sign-in returns <code>401 UNAUTHORIZED</code> with "not authorised for the platform".</dd>
+              <dt>Security note</dt>
+              <dd>Not a secret, but it is operator PII. It is never sent to the browser; the settings page only shows a count.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_IP_ALLOWLIST</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>An extra network gate in middleware. Empty disables it.</dd>
+              <dt>Where to get it</dt>
+              <dd>
+                The egress ranges of your office, VPN or access proxy. For Cloudflare Access, the
+                app sees the real client IP in <code>cf-connecting-ip</code>, so list operator
+                egress ranges, not Cloudflare ranges.
+              </dd>
+              <dt>Format</dt>
+              <dd>Comma separated exact IPv4, IPv4 CIDR, or exact IPv6. IPv6 CIDR is not supported.</dd>
+              <dt>Warning</dt>
+              <dd>
+                The check trusts proxy forwarding headers. Only enable it behind a proxy that
+                strips or overwrites client-supplied <code>x-forwarded-for</code>.
+              </dd>
+              <dt>If wrong</dt>
+              <dd>A bare 404 for every request, indistinguishable from a host mismatch.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-public-firebase">6.2 Public Firebase</h3>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>NEXT_PUBLIC_FIREBASE_API_KEY</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Public</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The Firebase Web API key used by the browser SDK for email/password sign-in and MFA.</dd>
+              <dt>Where to get it</dt>
+              <dd>Firebase console -> Project settings -> General -> Your apps -> Web app -> SDK setup and configuration -> Config.</dd>
+              <dt>Format</dt>
+              <dd>Starts with <code>AIza</code>.</dd>
+              <dt>Is it a secret?</dt>
+              <dd>
+                No. It identifies the project and is visible in every browser. Protection comes from
+                Firebase quotas, optional App Check, the email allowlist, MFA and Firestore rules.
+              </dd>
+              <dt>Must match</dt>
+              <dd>The same Admin project as the other three public values.</dd>
+              <dt>Build-time</dt>
+              <dd>Inlined into the bundle. A change requires a new deployment.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Public</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The domain used by Firebase Auth, and by the app's CSP for Auth requests and MFA or reCAPTCHA frames.</dd>
+              <dt>Where to get it</dt>
+              <dd>Same Firebase web app config block.</dd>
+              <dt>Format</dt>
+              <dd><code>YOUR_PROJECT_ID.firebaseapp.com</code>, unless you configured a custom auth domain.</dd>
+              <dt>If wrong</dt>
+              <dd>The browser cannot complete sign-in, and the CSP blocks the Auth iframe.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Public</span>
+            <span class="badge same">Equals PLATFORM_FIREBASE_PROJECT_ID</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The Admin project id used by the browser SDK.</dd>
+              <dt>Where to get it</dt>
+              <dd>Same Firebase web app config block, or the project settings header.</dd>
+              <dt>Must match</dt>
+              <dd><code>PLATFORM_FIREBASE_PROJECT_ID</code>. If they differ, the browser signs users into one project and the server verifies tokens against another.</dd>
+              <dt>Must differ</dt>
+              <dd>The Secret API vault project and every tenant project.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>NEXT_PUBLIC_FIREBASE_APP_ID</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Public</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The Firebase Web app id.</dd>
+              <dt>Where to get it</dt>
+              <dd>Same Firebase web app config block.</dd>
+              <dt>Format</dt>
+              <dd><code>1:PROJECT_NUMBER:web:SHORT_ID</code>.</dd>
+              <dt>Note</dt>
+              <dd>Do not confuse it with the project id or project number.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-firebase-admin">6.3 Firebase Admin</h3>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_FIREBASE_PROJECT_ID</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Trusted by Secret API</span>
+            <span class="badge diff">Different from vault project</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                The Admin Firebase project. Its Auth issues the ID tokens the app verifies, and its
+                Firestore stores the <code>platform_tenants</code>, <code>platform_audit_log</code>,
+                <code>platform_report_snapshots</code> and <code>platform_settings</code> collections.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>The <code>project_id</code> field inside the Admin service account JSON, or the Firebase project settings.</dd>
+              <dt>Must match</dt>
+              <dd>
+                <code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>, and the project id the Secret API is
+                configured to trust when it verifies <code>actorIdToken</code>.
+              </dd>
+              <dt>Must differ</dt>
+              <dd>
+                The Secret API vault project, the CMS projects and every tenant project. This
+                separation is the blast-radius boundary.
+              </dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_FIREBASE_CLIENT_EMAIL</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Same JSON as the private key</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The service account identity used by Firebase Admin.</dd>
+              <dt>Where to get it</dt>
+              <dd>The <code>client_email</code> field of the Admin service account JSON.</dd>
+              <dt>Must match</dt>
+              <dd>The private key: both must come from the same generated key file.</dd>
+              <dt>Must differ</dt>
+              <dd>The reporting service account. Never reuse one account for both roles.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_FIREBASE_PRIVATE_KEY</code>
+            <span class="badge req">Required</span>
+            <span class="badge sec">Secret</span>
+            <span class="badge same">Same JSON as the client email</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The private key that signs Admin SDK calls for Firestore, Auth and session cookie creation.</dd>
+              <dt>Where to get it</dt>
+              <dd>
+                Firebase console -> Project settings -> Service accounts -> Generate new private
+                key. Copy the <code>private_key</code> field.
+              </dd>
+              <dt>Format</dt>
+              <dd>
+                Quoted, with escaped newlines:
+                <code>"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"</code>.
+                The value must contain <code>BEGIN PRIVATE KEY</code>.
+              </dd>
+              <dt>Security</dt>
+              <dd>
+                Full control of the Admin project. Never put it in <code>NEXT_PUBLIC_</code>, never
+                log it, never commit it. The app never sends it anywhere.
+              </dd>
+              <dt>Rotation</dt>
+              <dd>Create a new key in GCP, update Vercel, deploy, then delete the old key.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-secret-api">6.4 Secret API client</h3>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>SECRET_API_BASE_URL</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Same environment as the token</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The base URL the Admin server calls for secret metadata, reveal, delivery, retirement and secret health.</dd>
+              <dt>Where to get it</dt>
+              <dd>The Secret API deployment URL, from the team that operates it.</dd>
+              <dt>Format</dt>
+              <dd><code>https://secret-api.uniconhub.com</code>. No trailing slash is required; it is stripped. HTTPS is enforced in production.</dd>
+              <dt>Must match</dt>
+              <dd>
+                The same environment as <code>SECRET_API_ADMIN_SERVICE_TOKEN</code>. A production
+                token against staging, or the reverse, is a common and confusing failure.
+              </dd>
+              <dt>Never</dt>
+              <dd>Never used in browser code. The browser never calls the Secret API.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>SECRET_API_ADMIN_SERVICE_TOKEN</code>
+            <span class="badge req">Required</span>
+            <span class="badge sec">Secret</span>
+            <span class="badge same">Identical in Secret API</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>The bearer token the Admin server presents to Secret API admin endpoints.</dd>
+              <dt>Where to get it</dt>
+              <dd>
+                Generated by the Secret API operator and stored in both systems. If you operate
+                both, generate a random value and configure it on both sides in the same change
+                window.
+              </dd>
+              <dt>Must match</dt>
+              <dd>
+                <strong>The Secret API's expected admin token.</strong> This is the most important
+                cross-project equality in the system.
+              </dd>
+              <dt>Security</dt>
+              <dd>
+                Grants access to admin endpoints, still subject to the actor token checks the
+                Secret API performs. Never public, never logged, never written to audit metadata.
+              </dd>
+              <dt>If wrong</dt>
+              <dd>The Secret API returns 401 or 403, and the Admin app surfaces <code>503 SECRET_API_UNAVAILABLE</code>.</dd>
+              <dt>Rotation</dt>
+              <dd>Update both systems close together; reveal and delivery fail between the two updates.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>SECRET_API_TIMEOUT_MS</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Per-request timeout for the Secret API. Default 5000, clamped 500-30000.</dd>
+              <dt>Where to get it</dt>
+              <dd>You choose, based on the Secret API's measured latency.</dd>
+              <dt>Tradeoff</dt>
+              <dd>Too low causes false 503s during cold starts; too high makes failure pages slow.</dd>
+              <dt>Must match</dt>
+              <dd>Nothing. It is local to this client.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-cms">6.5 CMS</h3>
+
+        <div class="callout">
+          <p>
+            <strong>These are platform values, not tenant values.</strong>
+            <code>CMS_SYSTEM_API_BASE_URL</code> is the CMS host that serves
+            <code>/api/system/...</code>. <code>CMS_SYSTEM_API_KEY</code> is the platform system key
+            configured in the CMS. The tenant is supplied at runtime when an operator provisions a
+            tenant:
+          </p>
+          <p class="small">
+            <code>/api/system/KEY/ctgc/TENANT_ID/CMS_PROJECT_ID</code>
+          </p>
+          <p class="small">
+            Never put a tenant id, a tenant host or a per-tenant key in either variable.
+          </p>
+        </div>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>CMS_SYSTEM_API_BASE_URL</code>
+            <span class="badge req">Required</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Same environment as the CMS key</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Base URL for the CMS system endpoints that create tenants and retry first-party enrollment.</dd>
+              <dt>Where to get it</dt>
+              <dd>The CMS deployment URL, from the CMS team.</dd>
+              <dt>Format</dt>
+              <dd><code>https://cms.uniconhub.com</code>, no trailing slash required.</dd>
+              <dt>Not tenant-specific</dt>
+              <dd>
+                One value for the whole platform. A call looks like
+                <code>https://cms.uniconhub.com/api/system/KEY/ctgc/TENANT_ID/CMS_PROJECT_ID</code>.
+                The tenant id and CMS project id are path parameters, not part of this URL.
+                Do not paste a tenant host here.
+              </dd>
+              <dt>Must match</dt>
+              <dd>The same CMS environment as <code>CMS_SYSTEM_API_KEY</code>.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>CMS_SYSTEM_API_KEY</code>
+            <span class="badge req">Required</span>
+            <span class="badge sec">Secret</span>
+            <span class="badge same">Identical in CMS</span>
+            <span class="badge diff">Different from enrollment token</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                The key embedded in the CMS system path:
+                <code>/api/system/KEY/ctgc/TENANT_ID/CMS_PROJECT_ID</code>. It authorizes tenant
+                creation and enrollment retry.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>The CMS team generates the system API key; the CMS stores the same value.</dd>
+              <dt>Not tenant-specific</dt>
+              <dd>
+                One platform-level system key, shared with the CMS. It is not a per-tenant key and
+                it is not a tenant id. The same key is used for every tenant because the tenant is
+                identified in the request path.
+              </dd>
+              <dt>Must match</dt>
+              <dd><strong>The CMS's configured system key.</strong></dd>
+              <dt>Must differ</dt>
+              <dd>
+                <code>SECRET_API_CMS_ENROLL_TOKEN</code>. That token authenticates the CMS calling
+                the Secret API. This key authenticates the Admin app calling the CMS. Different
+                directions, different secrets.
+              </dd>
+              <dt>Security</dt>
+              <dd>
+                Can create tenants. It travels in the URL path, so the client never logs the URL;
+                log lines replace the key with <code>[cms-api-key]</code>.
+              </dd>
+              <dt>If wrong</dt>
+              <dd>Provisioning fails and the tenant is marked <code>failed</code> with a sanitized error.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>CMS_SYSTEM_API_TIMEOUT_MS</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Provisioning request timeout. Default 10000, clamped 1000-60000.</dd>
+              <dt>Where to get it</dt>
+              <dd>You choose. CMS tenant creation can be slow on the first call.</dd>
+              <dt>If too low</dt>
+              <dd>The attempt is recorded as failed even though the CMS may still be creating the tenant. Retry uses the enrollment endpoint on conflict, so recovery is possible.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_CMS_HOST_SUFFIX</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Must exist in DNS</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                Suffix used to generate a default CMS host as
+                <code>TENANT_ID.SUFFIX</code> when a tenant record omits <code>cmsHost</code>.
+                Default <code>cms.uniconhub.com</code>.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>The wildcard DNS zone and TLS certificate that the CMS actually serves.</dd>
+              <dt>Must match</dt>
+              <dd>Real DNS. A generated host that does not resolve is a broken tenant.</dd>
+              <dt>Note</dt>
+              <dd>Not used when the tenant record provides an explicit host.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_PUBLICWEBSITE_HOST_SUFFIX</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Must exist in DNS</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Same as above, for the tenant public website host. Default <code>publicwebsite.uniconhub.com</code>.</dd>
+              <dt>Where to get it</dt>
+              <dd>The wildcard DNS zone and TLS certificate used by the public website deployment.</dd>
+              <dt>Must match</dt>
+              <dd>Real DNS and the Vercel project or hosting that serves the tenant sites.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-reporting">6.6 Reporting</h3>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON</code>
+            <span class="badge opt">Conditional</span>
+            <span class="badge sec">Secret</span>
+            <span class="badge diff">Different from Admin service account</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                A dedicated read-only Google Cloud service account used to read aggregates from every
+                tenant project. Required only for reporting refresh and the cron job.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>
+                Google Cloud console -> IAM &amp; Admin -> Service accounts -> create
+                <code>platform-reporting-reader</code> -> grant <code>roles/datastore.viewer</code> on
+                each tenant project -> Keys -> Add key -> JSON.
+              </dd>
+              <dt>Format</dt>
+              <dd>
+                One-line JSON. In <code>.env.local</code>, wrap it in single quotes so the escaped
+                newlines inside the private key stay valid JSON.
+              </dd>
+              <dt>Must differ</dt>
+              <dd>
+                The Admin service account and every Secret API credential. Read-only, tenant
+                projects only.
+              </dd>
+              <dt>If missing</dt>
+              <dd>Reporting refresh returns a configuration error. The rest of the app still works.</dd>
+              <dt>Security</dt>
+              <dd>
+                The code stores counts only, but the IAM role can read tenant documents. Guard the
+                key and rotate it like any other credential.
+              </dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_REPORTING_MAX_CONCURRENCY</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Number of tenant projects collected in parallel. Default 3, clamped 1-10.</dd>
+              <dt>Where to get it</dt>
+              <dd>You choose, based on Firestore quotas and observed latency.</dd>
+              <dt>Tradeoff</dt>
+              <dd>Higher finishes faster but can trigger quota errors, which are recorded as partial failures.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_REPORTING_TENANT_TIMEOUT_MS</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Maximum time spent on one tenant before it is recorded as a partial failure. Default 10000, clamped 1000-60000.</dd>
+              <dt>Where to get it</dt>
+              <dd>You choose. Keep it below the platform function timeout.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_REPORTING_CRON_SECRET</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge sec">Secret</span>
+            <span class="badge same">Identical to Vercel CRON_SECRET</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Shared secret that allows the reporting refresh route to run without a session, for Vercel Cron.</dd>
+              <dt>Where to get it</dt>
+              <dd>Generate a random value, for example <code>openssl rand -base64 32</code>, and set it in both places.</dd>
+              <dt>Must match</dt>
+              <dd>
+                Vercel's <code>CRON_SECRET</code>. Vercel sends
+                <code>Authorization: Bearer CRON_SECRET</code>; the app compares it in constant time.
+              </dd>
+              <dt>If missing</dt>
+              <dd>Only manual refresh works. Cron requests are rejected.</dd>
+              <dt>Security</dt>
+              <dd>Can trigger a reporting refresh. It cannot reveal or modify secrets.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_REPORTING_OBJECT_COLLECTION</code> and seven related mapping keys
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Server</span>
+            <span class="badge same">Must match tenant Firestore schema</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What they are</dt>
+              <dd>
+                The collection and field names the reporting collector reads in each tenant
+                project. Defaults:
+                <code>objects</code> / <code>objectTypeId</code>,
+                <code>api_requests</code> / <code>apiVersion</code>,
+                <code>first_party_requests</code> / <code>isError</code>,
+                <code>users</code> (<code>lastActiveAt</code> is fixed),
+                <code>platform_usage/current</code> (<code>storageBytes</code> is fixed).
+              </dd>
+              <dt>Where to get them</dt>
+              <dd>The CMS data model, confirmed against a real tenant project in the Firestore console.</dd>
+              <dt>Must match</dt>
+              <dd>
+                Every tenant project. If one tenant uses different names, that tenant records a
+                partial failure while the rest of the refresh continues.
+              </dd>
+              <dt>Not shared</dt>
+              <dd>Nothing in the Secret API uses these names.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-demo">6.7 Demo and E2E</h3>
+
+        <div class="callout danger">
+          <p>
+            These three values simulate authentication and persistence. They are refused when
+            <code>NODE_ENV=production</code> or when <code>VERCEL=1</code>. Never add them to a
+            Vercel environment.
+          </p>
+        </div>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_E2E_MODE</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge sec">Dev only</span>
+            <span class="badge never">Never in production</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Swaps Firebase Auth for a deterministic local verifier and Firestore for an in-memory store.</dd>
+              <dt>Where to get it</dt>
+              <dd>You do not get it anywhere. <code>npm run dev:demo</code> sets it for you.</dd>
+              <dt>Rule</dt>
+              <dd>The server refuses it in production and on Vercel. The client helper requires <code>NEXT_PUBLIC_PLATFORM_E2E_MODE</code> as well.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>NEXT_PUBLIC_PLATFORM_E2E_MODE</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge pub">Public</span>
+            <span class="badge never">Never in production</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>Shows the "Sign in as owner/admin/operator/auditor" buttons on the login page.</dd>
+              <dt>Where to get it</dt>
+              <dd>Set by <code>npm run dev:demo</code>. Build-time value.</dd>
+              <dt>Rule</dt>
+              <dd>Even if a build contains it, the server still rejects E2E sessions in production.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>PLATFORM_E2E_SESSION_SECRET</code>
+            <span class="badge opt">Optional</span>
+            <span class="badge sec">Dev only</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>HMAC key for the simulated session cookie used by the local demo.</dd>
+              <dt>Where to get it</dt>
+              <dd>Any local random string. The demo script supplies one.</dd>
+              <dt>Rule</dt>
+              <dd>Not used when E2E mode is off.</dd>
+            </dl>
+          </div>
+        </details>
+
+        <h3 id="detailed-vercel">6.8 Vercel platform</h3>
+
+        <details class="var" data-searchable>
+          <summary>
+            <code>CRON_SECRET</code> (Vercel)
+            <span class="badge opt">Conditional</span>
+            <span class="badge sec">Secret</span>
+            <span class="badge same">Equals PLATFORM_REPORTING_CRON_SECRET</span>
+          </summary>
+          <div class="var-body">
+            <dl>
+              <dt>What it is</dt>
+              <dd>
+                A Vercel variable used by Vercel Cron. Vercel sends it as
+                <code>Authorization: Bearer CRON_SECRET</code> when it invokes the cron path. The
+                app does not read this name directly.
+              </dd>
+              <dt>Where to get it</dt>
+              <dd>You generate it in Vercel -> Settings -> Environment Variables.</dd>
+              <dt>Must match</dt>
+              <dd><code>PLATFORM_REPORTING_CRON_SECRET</code> exactly.</dd>
+              <dt>If missing</dt>
+              <dd>Cron requests are rejected; manual refresh still works.</dd>
+            </dl>
+          </div>
+        </details>
+      </section>
+
+      <section id="cross-project">
+        <h2>7. Cross-project comparison</h2>
+        <p class="sub">
+          This is the part that causes most production incidents: values that must be equal, values
+          that must be different, and values that must not exist here at all. The exact variable
+          names in the Secret API and CMS projects depend on those repositories; the contract below
+          is what matters.
+        </p>
+
+        <h3>7.1 Values that must be identical</h3>
+        <div class="table-scroll">
+          <table>
+            <caption>Copy the value from one system to the other; do not "recreate" it independently.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Admin app value</th>
+                <th scope="col">Counterpart</th>
+                <th scope="col">Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>PLATFORM_FIREBASE_PROJECT_ID</code></td>
+                <td>The Secret API's trusted Admin project id (its own variable name)</td>
+                <td>
+                  The Secret API verifies the forwarded <code>actorIdToken</code>. It must check the
+                  token issuer and audience against the Admin Firebase project. If it checks its own
+                  vault project id instead, every reveal fails with 401/403.
+                </td>
+              </tr>
+              <tr>
+                <td><code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code></td>
+                <td><code>PLATFORM_FIREBASE_PROJECT_ID</code></td>
+                <td>The browser signs users into the project whose tokens the server verifies.</td>
+              </tr>
+              <tr>
+                <td><code>SECRET_API_ADMIN_SERVICE_TOKEN</code></td>
+                <td>The Secret API's expected admin service token</td>
+                <td>The bearer token must match on both sides. This is the primary shared secret.</td>
+              </tr>
+              <tr>
+                <td><code>CMS_SYSTEM_API_KEY</code></td>
+                <td>The CMS's configured system API key</td>
+                <td>The key is part of the provisioning URL path.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_REPORTING_CRON_SECRET</code></td>
+                <td>Vercel <code>CRON_SECRET</code></td>
+                <td>Vercel sends it as a bearer token; the app compares it in constant time.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_HOST</code></td>
+                <td>The domain attached in Vercel / DNS</td>
+                <td>The host guard accepts exactly this host.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_FIREBASE_CLIENT_EMAIL</code></td>
+                <td><code>PLATFORM_FIREBASE_PRIVATE_KEY</code></td>
+                <td>Both must come from the same service account JSON. A mismatched pair fails to authenticate.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_ADMIN_EMAILS</code></td>
+                <td>Firebase Authentication users in the Admin project</td>
+                <td>Membership, not literal equality: every operator must be in both.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_REVEAL_FRESH_AUTH_SECONDS</code></td>
+                <td>The Secret API's freshness window</td>
+                <td>Admin should be lower than or equal to the Secret API. If Admin is looser, the upstream rejects a reveal the operator already re-authenticated for.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>7.2 Values that must be different</h3>
+        <div class="table-scroll">
+          <table>
+            <caption>Reusing these collapses a security boundary. Keep them separate even in staging.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Value A</th>
+                <th scope="col">Value B</th>
+                <th scope="col">Why they must differ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Admin Firebase project (<code>PLATFORM_FIREBASE_*</code>)</td>
+                <td>Secret API vault Firebase project</td>
+                <td>
+                  The Admin app must not be able to reach the vault database, and the vault must not
+                  be able to read platform data. Separate projects enforce this at IAM level.
+                </td>
+              </tr>
+              <tr>
+                <td>Admin service account</td>
+                <td>Reporting service account</td>
+                <td>Least privilege. Reporting is read-only on tenant projects; the Admin account is not.</td>
+              </tr>
+              <tr>
+                <td>Admin service account</td>
+                <td>Secret API service account</td>
+                <td>Different projects and different blast radius. Never share a key file.</td>
+              </tr>
+              <tr>
+                <td><code>CMS_SYSTEM_API_KEY</code></td>
+                <td><code>SECRET_API_CMS_ENROLL_TOKEN</code></td>
+                <td>
+                  Different directions: one authenticates the Admin app to the CMS, the other
+                  authenticates the CMS to the Secret API. The Admin app must never be able to
+                  enroll keys.
+                </td>
+              </tr>
+              <tr>
+                <td><code>SECRET_API_ADMIN_SERVICE_TOKEN</code></td>
+                <td><code>SECRET_API_RUNTIME_FETCH_TOKEN</code></td>
+                <td>
+                  Different consumers: the Admin server versus tenant runtimes. A runtime token must
+                  never grant admin access.
+                </td>
+              </tr>
+              <tr>
+                <td><code>SECRET_API_CMS_ENROLL_TOKEN</code></td>
+                <td><code>SECRET_API_RUNTIME_FETCH_TOKEN</code></td>
+                <td>Enrollment and runtime delivery are separate trust paths.</td>
+              </tr>
+              <tr>
+                <td>Local demo secrets (<code>PLATFORM_E2E_*</code>)</td>
+                <td>Any production value</td>
+                <td>E2E mode must never be available in a production deployment.</td>
+              </tr>
+              <tr>
+                <td>Admin Firebase web app config</td>
+                <td>Any tenant Firebase web app config</td>
+                <td>Tenants use their own projects. Reusing one would mix auth domains and data.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>7.3 Values that must never appear in this app</h3>
+        <div class="table-scroll">
+          <table>
+            <caption>These belong to the vault or to other consumers. A source-scan test enforces this list.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Variable</th>
+                <th scope="col">Where it belongs</th>
+                <th scope="col">What it does there</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SECRETS_ENC_KEY</code></td>
+                <td>Secret API only</td>
+                <td>Symmetric master key that encrypts private keys at rest. Leaking it compromises every key. The Admin app is intentionally unable to use it.</td>
+              </tr>
+              <tr>
+                <td><code>SECRETS_FINGERPRINT_KEY</code></td>
+                <td>Secret API only</td>
+                <td>HMAC key for deterministic fingerprints and key ids. Leaking it allows correlation and forgery, but not decryption.</td>
+              </tr>
+              <tr>
+                <td><code>SECRET_API_CMS_ENROLL_TOKEN</code></td>
+                <td>Secret API and CMS</td>
+                <td>Authenticates CMS auto-enrollment calls. Provisioning triggers the CMS endpoint; the Admin app never holds the token.</td>
+              </tr>
+              <tr>
+                <td><code>SECRET_API_RUNTIME_FETCH_TOKEN</code></td>
+                <td>Secret API and tenant runtime</td>
+                <td>Authenticates runtime-fetch delivery. Tenant runtimes hold it; the Admin app does not.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>7.4 What the Secret API needs from this project</h3>
+        <p>
+          The Secret API needs the Admin project id to verify <code>actorIdToken</code>. It does
+          <strong>not</strong> need the Admin service account key. A Firebase project id is an
+          identifier; verification uses Google's public signing keys.
+        </p>
+        <ol>
+          <li>The Admin browser signs in to the Admin project and obtains an ID token with MFA.</li>
+          <li>The Admin server forwards that token as <code>actorIdToken</code> with the service token.</li>
+          <li>The Secret API verifies the signature, the issuer and audience for the Admin project, the MFA claim, the owner role and <code>auth_time</code> freshness.</li>
+          <li>Only then does it decrypt and return the key, or perform delivery or retirement.</li>
+        </ol>
+
+        <h3>7.5 Environment mismatch traps</h3>
+        <ul>
+          <li>Production Admin pointing at a staging Secret API: service token rejected, tenant ids unknown.</li>
+          <li>Production Admin pointing at a staging CMS: provisioning creates tenants in the wrong place.</li>
+          <li>Rotating the Secret API admin token on one side only: every secret action returns 503.</li>
+          <li>Using the Secret API vault project id in <code>PLATFORM_FIREBASE_*</code>: sessions verify against the wrong project and every platform page fails.</li>
+          <li>Using <code>SECRET_API_CMS_ENROLL_TOKEN</code> as <code>CMS_SYSTEM_API_KEY</code>: provisioning is rejected by the CMS.</li>
+          <li>Reusing the reporting service account as the Admin service account: the reporting account loses its least-privilege boundary.</li>
+        </ul>
+      </section>
+
+      <section id="where-to-get">
+        <h2>8. Where to get every value</h2>
+
+        <h3>8.1 Firebase web config (4 public values)</h3>
+        <ol>
+          <li>Firebase console -> Project settings -> General.</li>
+          <li>Scroll to "Your apps" and select the Web app.</li>
+          <li>Open "SDK setup and configuration" and copy the config object.</li>
+          <li>Map <code>apiKey</code>, <code>authDomain</code>, <code>projectId</code> and <code>appId</code> to the four <code>NEXT_PUBLIC_FIREBASE_*</code> variables.</li>
+        </ol>
+
+        <h3>8.2 Firebase Admin service account (3 values)</h3>
+        <ol>
+          <li>Firebase console -> Project settings -> Service accounts.</li>
+          <li>Click "Generate new private key" and download the JSON.</li>
+          <li>Copy <code>project_id</code>, <code>client_email</code> and <code>private_key</code>.</li>
+          <li>Store the JSON somewhere safe and delete the download when done.</li>
+        </ol>
+        <div class="callout warn">
+          <p>
+            The downloaded JSON contains a private key. Do not paste it into chat, tickets or this
+            document. If it is exposed, revoke the key in Google Cloud IAM immediately.
+          </p>
+        </div>
+
+        <h3>8.3 Reporting service account</h3>
+        <ol>
+          <li>Google Cloud console -> IAM &amp; Admin -> Service accounts -> Create service account.</li>
+          <li>Name it <code>platform-reporting-reader</code>.</li>
+          <li>Grant <code>roles/datastore.viewer</code> on every tenant project, for example:</li>
+        </ol>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>gcloud projects add-iam-policy-binding TENANT_PROJECT_ID \
+  --member="serviceAccount:REPORTING_SA_EMAIL" \
+  --role="roles/datastore.viewer"</pre>
+        </div>
+        <ol start="4">
+          <li>Keys -> Add key -> JSON.</li>
+          <li>Paste the JSON as a single line into <code>PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON</code>, wrapped in single quotes.</li>
+        </ol>
+
+        <h3>8.4 Secret API admin token</h3>
+        <p>
+          Ask the Secret API operator for the admin service token, or generate one and configure it
+          in both systems in the same change window:
+        </p>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"</pre>
+        </div>
+
+        <h3>8.5 CMS system key</h3>
+        <p>
+          The CMS team generates the system API key and stores it in the CMS. Copy that value into
+          <code>CMS_SYSTEM_API_KEY</code>. Do not generate your own: the CMS must recognize it.
+        </p>
+
+        <h3>8.6 Cron secret</h3>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>openssl rand -base64 32</pre>
+        </div>
+        <p>
+          Set the same value as <code>PLATFORM_REPORTING_CRON_SECRET</code> and as Vercel's
+          <code>CRON_SECRET</code>.
+        </p>
+
+        <h3>8.7 Host, emails and network</h3>
+        <ul>
+          <li><code>PLATFORM_HOST</code>: Vercel -> Settings -> Domains, or the production <code>*.vercel.app</code> host for a smoke test.</li>
+          <li><code>PLATFORM_ADMIN_EMAILS</code>: Firebase Authentication -> Users.</li>
+          <li><code>PLATFORM_IP_ALLOWLIST</code>: office or VPN egress ranges from your network team, or the proxy documentation.</li>
+          <li><code>PLATFORM_SESSION_TTL_HOURS</code> and <code>PLATFORM_REVEAL_FRESH_AUTH_SECONDS</code>: your security policy.</li>
+        </ul>
+      </section>
+
+      <section id="formats">
+        <h2>9. Formats and gotchas</h2>
+
+        <h3>Private keys and newlines</h3>
+        <p>
+          In <code>.env.local</code>, wrap the key in double quotes and keep the escaped
+          <code>\n</code> sequences:
+        </p>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>PLATFORM_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----\n"</pre>
+        </div>
+        <p>
+          The app converts escaped newlines to real newlines. The value must contain
+          <code>BEGIN PRIVATE KEY</code>. A key pasted with real line breaks inside a quoted value
+          also works, but is easier to break when copying.
+        </p>
+
+        <h3>Service account JSON</h3>
+        <p>
+          Use single quotes around the whole JSON so the escaped newlines inside
+          <code>private_key</code> remain valid JSON:
+        </p>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"...","client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"}'</pre>
+        </div>
+        <p>
+          In Vercel's UI, paste the same one-line JSON without surrounding quotes; the UI stores the
+          literal value.
+        </p>
+
+        <h3>Hosts</h3>
+        <ul>
+          <li>Use a bare host: <code>admin.uniconhub.com</code>.</li>
+          <li>Do not add <code>https://</code> or a path. The current code tolerates them, but clean values avoid surprises.</li>
+          <li>A trailing dot and mixed case are normalized.</li>
+          <li><code>www.</code> is a different host from the apex domain.</li>
+        </ul>
+
+        <h3>Lists and ranges</h3>
+        <ul>
+          <li><code>PLATFORM_ADMIN_EMAILS</code>: comma separated, exact, case-insensitive. No wildcards or domain rules.</li>
+          <li><code>PLATFORM_IP_ALLOWLIST</code>: exact IPv4, IPv4 CIDR, exact IPv6. IPv6 CIDR is not supported.</li>
+          <li><code>PLATFORM_ALLOWED_DEV_HOSTS</code>: comma separated <code>host:port</code>.</li>
+        </ul>
+
+        <h3>URLs</h3>
+        <ul>
+          <li>Trailing slashes on <code>SECRET_API_BASE_URL</code> and <code>CMS_SYSTEM_API_BASE_URL</code> are stripped.</li>
+          <li><code>SECRET_API_BASE_URL</code> must be HTTPS in production; the configuration loader rejects plain HTTP.</li>
+          <li>The CMS URL is not protocol-checked, but use HTTPS.</li>
+        </ul>
+
+        <h3>Build-time values</h3>
+        <p>
+          <code>NEXT_PUBLIC_*</code> is embedded in the client bundle. Changing it in Vercel without
+          a new deployment has no effect. This is the most common "I changed it but nothing
+          happened" cause.
+        </p>
+      </section>
+
+      <section id="validate">
+        <h2>10. Validate the configuration</h2>
+
+        <h3>Local</h3>
+        <ol>
+          <li>Start the dev server. Next prints <code>Environments: .env.local</code> when the file is loaded.</li>
+          <li>Open <code>http://localhost:3000/login</code>. A warning means Firebase is missing.</li>
+          <li>Sign in. A <code>401</code> means the email allowlist or the role claim is missing.</li>
+          <li>Open <code>/settings</code>. The environment status table shows which variables are configured.</li>
+        </ol>
+
+        <h3>Vercel</h3>
+        <ol>
+          <li><code>https://YOUR_HOST/api/platform/health</code> returns <code>200</code> with <code>ok: true</code>.</li>
+          <li><code>https://YOUR_HOST/login</code> returns the login form.</li>
+          <li>Sign in and open <code>/tenants</code>.</li>
+          <li>Create a tenant and provision it. A failure narrows the problem to the CMS variables.</li>
+          <li>Open <code>/secrets</code>. A 503 narrows the problem to the Secret API variables.</li>
+          <li>Run "Refresh reporting". A configuration error narrows it to the reporting JSON.</li>
+        </ol>
+
+        <h3>Symptom to variable</h3>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Symptom</th>
+                <th scope="col">Check first</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>404 on every URL</td><td><code>PLATFORM_HOST</code>, then redeploy; locally also <code>PLATFORM_ALLOWED_DEV_HOSTS</code></td></tr>
+              <tr><td>"Firebase is not configured" on login</td><td>The four <code>NEXT_PUBLIC_FIREBASE_*</code> values, then rebuild</td></tr>
+              <tr><td>Sign-in says "Component auth has not been registered yet"</td><td>Duplicate <code>@firebase/app</code> installs. Keep the <code>overrides</code> entry in <code>package.json</code>, run <code>npm install</code>, confirm <code>npm ls @firebase/app --all</code> shows one version, then redeploy</td></tr>
+              <tr><td>Sign-in says <code>auth/api-key-not-valid</code></td><td><code>NEXT_PUBLIC_FIREBASE_API_KEY</code> is wrong, or the deployment was built before the value was set</td></tr>
+              <tr><td>Sign-in says <code>auth/unauthorized-domain</code></td><td>Add the exact host to Firebase Authentication -&gt; Settings -&gt; Authorized domains</td></tr>
+              <tr><td>401 after sign-in</td><td><code>PLATFORM_ADMIN_EMAILS</code> and the <code>platformRole</code> claim</td></tr>
+              <tr><td>403 <code>MFA_REQUIRED</code></td><td>The user has no enrolled second factor</td></tr>
+              <tr><td>403 <code>REAUTH_REQUIRED</code></td><td><code>PLATFORM_REVEAL_FRESH_AUTH_SECONDS</code>, and the actor token freshness</td></tr>
+              <tr><td>503 on secret pages</td><td><code>SECRET_API_BASE_URL</code> and <code>SECRET_API_ADMIN_SERVICE_TOKEN</code></td></tr>
+              <tr><td>Provisioning fails</td><td><code>CMS_SYSTEM_API_BASE_URL</code> and <code>CMS_SYSTEM_API_KEY</code></td></tr>
+              <tr><td>Reporting refresh fails</td><td><code>PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON</code></td></tr>
+              <tr><td>Cron returns 401/403</td><td><code>PLATFORM_REPORTING_CRON_SECRET</code> versus Vercel <code>CRON_SECRET</code></td></tr>
+              <tr><td>Settings page shows "in-memory"</td><td><code>PLATFORM_E2E_MODE</code> is on; remove it</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="rotation">
+        <h2>11. Rotation and blast radius</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Value</th>
+                <th scope="col">If exposed</th>
+                <th scope="col">Rotate where</th>
+                <th scope="col">Effect during rotation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>PLATFORM_FIREBASE_PRIVATE_KEY</code></td>
+                <td>Full control of the Admin project: read/write platform data, mint sessions for allowlisted users.</td>
+                <td>Google Cloud IAM -> service account keys: create new, deploy, delete old.</td>
+                <td>Old instances fail until the new deployment is live.</td>
+              </tr>
+              <tr>
+                <td><code>SECRET_API_ADMIN_SERVICE_TOKEN</code></td>
+                <td>Can call Secret API admin endpoints, still limited by actor token checks.</td>
+                <td>Secret API and Admin app, together.</td>
+                <td>Secret actions return 503 between the two updates.</td>
+              </tr>
+              <tr>
+                <td><code>CMS_SYSTEM_API_KEY</code></td>
+                <td>Can create CMS tenants.</td>
+                <td>CMS and Admin app.</td>
+                <td>Provisioning fails between updates.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON</code></td>
+                <td>Read access to tenant project data.</td>
+                <td>Google Cloud IAM keys.</td>
+                <td>Reporting refresh fails until updated.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_REPORTING_CRON_SECRET</code></td>
+                <td>Can trigger a reporting refresh.</td>
+                <td>Vercel and the app.</td>
+                <td>Cron is rejected until both match.</td>
+              </tr>
+              <tr>
+                <td><code>NEXT_PUBLIC_FIREBASE_API_KEY</code></td>
+                <td>Not a secret. Abuse is limited by quotas and app controls.</td>
+                <td>Firebase, if you choose to rotate.</td>
+                <td>Requires a rebuild.</td>
+              </tr>
+              <tr>
+                <td><code>PLATFORM_E2E_*</code></td>
+                <td>Would simulate auth if it ever ran in production.</td>
+                <td>Remove from any production environment. Never set it there.</td>
+                <td>No legitimate production use.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="templates">
+        <h2>12. Copy-paste templates</h2>
+
+        <h3>12.1 Local real environment (.env.local)</h3>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>PLATFORM_HOST=admin.uniconhub.com
+PLATFORM_ALLOWED_DEV_HOSTS=localhost:3000,127.0.0.1:3000
+PLATFORM_ADMIN_EMAILS=owner@uniconhub.com,admin@uniconhub.com
+PLATFORM_SESSION_TTL_HOURS=8
+PLATFORM_REVEAL_FRESH_AUTH_SECONDS=300
+PLATFORM_IP_ALLOWLIST=
+
+NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_WEB_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_PROJECT_ID.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_WEB_APP_ID
+
+PLATFORM_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
+PLATFORM_FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@YOUR_PROJECT_ID.iam.gserviceaccount.com
+PLATFORM_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+SECRET_API_BASE_URL=https://secret-api.uniconhub.com
+SECRET_API_ADMIN_SERVICE_TOKEN=YOUR_ADMIN_SERVICE_TOKEN
+SECRET_API_TIMEOUT_MS=5000
+
+CMS_SYSTEM_API_BASE_URL=https://cms.uniconhub.com
+CMS_SYSTEM_API_KEY=YOUR_CMS_SYSTEM_KEY
+CMS_SYSTEM_API_TIMEOUT_MS=10000
+PLATFORM_CMS_HOST_SUFFIX=cms.uniconhub.com
+PLATFORM_PUBLICWEBSITE_HOST_SUFFIX=publicwebsite.uniconhub.com
+
+PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"...","client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"}'
+PLATFORM_REPORTING_MAX_CONCURRENCY=3
+PLATFORM_REPORTING_TENANT_TIMEOUT_MS=10000
+PLATFORM_REPORTING_CRON_SECRET=YOUR_CRON_SECRET</pre>
+        </div>
+
+        <h3>12.2 Vercel Production variable names</h3>
+        <p>Set these in Vercel -> Settings -> Environment Variables. Values are environment-specific.</p>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>PLATFORM_HOST
+PLATFORM_ADMIN_EMAILS
+PLATFORM_SESSION_TTL_HOURS
+PLATFORM_REVEAL_FRESH_AUTH_SECONDS
+PLATFORM_IP_ALLOWLIST
+
+NEXT_PUBLIC_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_APP_ID
+
+PLATFORM_FIREBASE_PROJECT_ID
+PLATFORM_FIREBASE_CLIENT_EMAIL
+PLATFORM_FIREBASE_PRIVATE_KEY
+
+SECRET_API_BASE_URL
+SECRET_API_ADMIN_SERVICE_TOKEN
+SECRET_API_TIMEOUT_MS
+
+CMS_SYSTEM_API_BASE_URL
+CMS_SYSTEM_API_KEY
+CMS_SYSTEM_API_TIMEOUT_MS
+PLATFORM_CMS_HOST_SUFFIX
+PLATFORM_PUBLICWEBSITE_HOST_SUFFIX
+
+PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON
+PLATFORM_REPORTING_MAX_CONCURRENCY
+PLATFORM_REPORTING_TENANT_TIMEOUT_MS
+PLATFORM_REPORTING_CRON_SECRET
+CRON_SECRET</pre>
+        </div>
+        <p class="small">
+          Do not set <code>PLATFORM_E2E_MODE</code>, <code>NEXT_PUBLIC_PLATFORM_E2E_MODE</code> or
+          <code>PLATFORM_E2E_SESSION_SECRET</code> in Vercel.
+        </p>
+
+        <h3>12.3 Local demo (no environment file)</h3>
+        <div class="code-block">
+          <button class="copy" type="button">Copy</button>
+          <pre>npm run dev:demo</pre>
+        </div>
+        <p class="small">
+          The demo sets its own host, mock upstreams, E2E mode and dummy Firebase values. Nothing
+          needs to be added to <code>.env.local</code>.
+        </p>
+      </section>
+
+      <section id="faq">
+        <h2>13. FAQ</h2>
+
+        <h4>Is the Firebase Web API key a secret?</h4>
+        <p>
+          No. It is public by design and appears in every browser. Security comes from Firestore
+          rules, the email allowlist, MFA and Firebase quotas.
+        </p>
+
+        <h4>Can the Admin app and the Secret API share one Firebase project?</h4>
+        <p>
+          No. They are separate by design so that a compromise of one does not expose the other. The
+          Secret API only needs the Admin project id to verify actor tokens, not its credentials.
+        </p>
+
+        <h4>Does the Admin app need the encryption key to reveal a secret?</h4>
+        <p>
+          No, and it must never have it. Reveal is delegated to the Secret API with a fresh actor
+          token. If the Secret API is unavailable, the Admin app returns 503 and does not fall back
+          to local decryption.
+        </p>
+
+        <h4>Why are there two service accounts (Admin and reporting)?</h4>
+        <p>
+          Least privilege. The reporting account is read-only on tenant projects. The Admin account
+          has full access to the Admin project and none to the vault or tenant projects.
+        </p>
+
+        <h4>Can CMS_SYSTEM_API_KEY equal SECRET_API_CMS_ENROLL_TOKEN?</h4>
+        <p>
+          No. They authenticate opposite directions: Admin to CMS, and CMS to Secret API. The Admin
+          app must never be able to enroll keys.
+        </p>
+
+        <h4>Why does the Secret API need PLATFORM_FIREBASE_PROJECT_ID?</h4>
+        <p>
+          It must check that the forwarded actor token was issued for the Admin project. It only
+          needs the project id, which is public, plus Google's public signing keys. It never needs the
+          Admin service account key.
+        </p>
+
+        <h4>What happens if the Secret API is down?</h4>
+        <p>
+          Secret metadata pages show an unavailable message, and reveal, deliver and retire return
+          <code>503 SECRET_API_UNAVAILABLE</code>. Nothing is decrypted or cached locally.
+        </p>
+
+        <h4>Do I need to restart after editing .env.local?</h4>
+        <p>Yes. Next.js reads environment files at startup.</p>
+
+        <h4>Do I need to redeploy after changing Vercel variables?</h4>
+        <p>
+          Yes. Server values can be read at runtime, but <code>NEXT_PUBLIC_*</code> is baked into the
+          build. Redeploying with a cleared build cache is the reliable path.
+        </p>
+
+        <h4>Where is the source of truth if this document drifts?</h4>
+        <p>
+          <code>lib/server/env.ts</code> and <code>lib/edge/platform-config.ts</code>. Update this
+          document whenever a variable is added or renamed.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          Companion to <a href="../README.md">README.md</a> and <a href="../SECURITY.md">SECURITY.md</a>.
+          This document contains placeholders only. Never store real secrets in it.
+        </p>
+        <p>UniconHub Platform Admin - internal platform tooling.</p>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        var searchInput = document.getElementById('search');
+        var countElement = document.getElementById('search-count');
+        var searchable = Array.prototype.slice.call(
+          document.querySelectorAll('[data-searchable]')
+        );
+
+        function applyFilter() {
+          var query = (searchInput.value || '').trim().toLowerCase();
+          var visible = 0;
+          searchable.forEach(function (element) {
+            var matches = query === '' || element.textContent.toLowerCase().indexOf(query) !== -1;
+            element.hidden = !matches;
+            if (matches) visible += 1;
+          });
+          countElement.textContent = query === '' ? '' : visible + ' match(es)';
+        }
+
+        if (searchInput) {
+          searchInput.addEventListener('input', applyFilter);
+        }
+
+        var expandAll = document.getElementById('expand-all');
+        var collapseAll = document.getElementById('collapse-all');
+        if (expandAll) {
+          expandAll.addEventListener('click', function () {
+            document.querySelectorAll('details.var').forEach(function (details) {
+              details.open = true;
+            });
+          });
+        }
+        if (collapseAll) {
+          collapseAll.addEventListener('click', function () {
+            document.querySelectorAll('details.var').forEach(function (details) {
+              details.open = false;
+            });
+          });
+        }
+
+        window.addEventListener('beforeprint', function () {
+          document.querySelectorAll('details.var').forEach(function (details) {
+            details.open = true;
+          });
+        });
+
+        document.querySelectorAll('.code-block').forEach(function (block) {
+          var copyButton = block.querySelector('.copy');
+          var pre = block.querySelector('pre');
+          if (!copyButton || !pre) return;
+          copyButton.addEventListener('click', function () {
+            var text = pre.innerText;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(
+                function () {
+                  copyButton.textContent = 'Copied';
+                  setTimeout(function () {
+                    copyButton.textContent = 'Copy';
+                  }, 1500);
+                },
+                function () {
+                  copyButton.textContent = 'Select and copy';
+                }
+              );
+            } else {
+              copyButton.textContent = 'Select and copy';
+            }
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

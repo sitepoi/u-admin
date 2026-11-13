@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isHostAllowed, normalizeHostHeader, splitHostAndPort } from '@/lib/edge/host-guard';
 import { isIpAllowed } from '@/lib/edge/ip-allowlist';
+import { getEdgePlatformConfig } from '@/lib/edge/platform-config';
 
 const PRODUCTION_GUARD = {
   platformHost: 'admin.uniconhub.com',
@@ -58,6 +59,33 @@ describe('host guard', () => {
     expect(isHostAllowed('admin.uniconhub.com', { ...PRODUCTION_GUARD, platformHost: '' })).toBe(
       false,
     );
+  });
+});
+
+describe('edge platform configuration', () => {
+  it('normalizes schemes, paths and case in configured hosts', () => {
+    const previousPlatformHost = process.env.PLATFORM_HOST;
+    const previousDevHosts = process.env.PLATFORM_ALLOWED_DEV_HOSTS;
+
+    process.env.PLATFORM_HOST = 'https://Admin.UniconHub.com/';
+    process.env.PLATFORM_ALLOWED_DEV_HOSTS = 'http://localhost:3000/,LOCALHOST:4000';
+
+    try {
+      const config = getEdgePlatformConfig();
+      expect(config.platformHost).toBe('admin.uniconhub.com');
+      expect(config.allowedDevHosts).toEqual(['localhost:3000', 'localhost:4000']);
+    } finally {
+      if (previousPlatformHost === undefined) {
+        delete process.env.PLATFORM_HOST;
+      } else {
+        process.env.PLATFORM_HOST = previousPlatformHost;
+      }
+      if (previousDevHosts === undefined) {
+        delete process.env.PLATFORM_ALLOWED_DEV_HOSTS;
+      } else {
+        process.env.PLATFORM_ALLOWED_DEV_HOSTS = previousDevHosts;
+      }
+    }
   });
 });
 

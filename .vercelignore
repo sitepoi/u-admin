@@ -1,0 +1,15 @@
+# Never upload local environment files to Vercel.
+# If .env.local is uploaded by the CLI, Next inlines its values at build time
+# (including into the edge middleware), which can override Vercel's own
+# environment variables. Configure everything in Vercel instead.
+.env
+.env.*
+!.env.example
+
+# Local build and test artifacts
+.next
+node_modules
+coverage
+test-results
+playwright-report
+.git

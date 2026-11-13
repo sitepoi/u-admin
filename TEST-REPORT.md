@@ -23,17 +23,17 @@
 | --- | --- | --- | --- |
 | TypeScript (`tsc --noEmit`) | - | - | Pass |
 | Production build (`next build`) | - | - | Pass |
-| Unit | 8 | 130 | Pass |
+| Unit | 8 | 131 | Pass |
 | Integration | 8 | 70 | Pass |
 | Security | 3 | 13 | Pass |
-| **Vitest total** | **19** | **213** | **Pass** |
+| **Vitest total** | **19** | **214** | **Pass** |
 | End-to-end (Playwright) | 1 | 6 | Pass |
 
 Commands:
 
 ```bash
 npm run typecheck   # pass
-npm test            # 213 passed
+npm test            # 214 passed
 npm run build       # pass
 npm run test:e2e    # 6 passed
 ```
@@ -49,7 +49,7 @@ npm run test:e2e    # 6 passed
 | `tests/unit/audit.test.ts` | 5 | Record shape, metadata redaction, append-only duplicate rejection, newest-first pagination, filters |
 | `tests/unit/validation.test.ts` | 12 | Zod strictness, archive enum, session refinement, audit pagination bounds, body size/type/JSON errors |
 | `tests/unit/secret-api-client.test.ts` | 13 | Envelope shapes, status normalization, auth header, 404 mapping, timeouts, no token leakage, reveal payload, cache |
-| `tests/unit/host-ip.test.ts` | 15 | Host normalization, port handling, tenant/preview host rejection, IPv4 CIDR, IPv6 literals |
+| `tests/unit/host-ip.test.ts` | 16 | Host normalization, port handling, tenant/preview host rejection, IPv4 CIDR, IPv6 literals, configured-host scheme/path stripping |
 
 ## Integration tests
 
@@ -116,7 +116,7 @@ Performed with `next start` and `curl`, using `Host: admin.uniconhub.test`:
 | 9 | Reporting shows aggregates only | `reporting.test.ts`, `buildBundle` of snapshot contains no tenant fields |
 | 10 | Audit is append-only and covers sensitive actions | `audit.test.ts`, `reveal.test.ts`, `tenants-provision.test.ts`, E2E #5 |
 | 11 | Firestore rules deny all client access | `source-scan.test.ts` rules assertion |
-| 12 | All tests pass | 213 Vitest + 6 E2E, typecheck and build pass |
+| 12 | All tests pass | 214 Vitest + 6 E2E, typecheck and build pass |
 
 ## Defects found and fixed during testing
 

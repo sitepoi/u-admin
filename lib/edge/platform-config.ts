@@ -24,12 +24,36 @@ function splitList(value: string | undefined): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+/**
+ * Accepts both `admin.example.com` and common paste mistakes such as
+ * `https://admin.example.com/` or `Admin.Example.com.`. The host guard only
+ * ever compares bare hosts.
+ */
+export function normalizeConfiguredHost(value: string | undefined): string {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/\.$/, '');
+}
+
+let warnedAboutMissingPlatformHost = false;
+
 export function getEdgePlatformConfig(): EdgePlatformConfig {
-  const platformHost = (process.env.PLATFORM_HOST ?? '').trim().toLowerCase();
+  const platformHost = normalizeConfiguredHost(process.env.PLATFORM_HOST);
+
+  if (!platformHost && !warnedAboutMissingPlatformHost) {
+    warnedAboutMissingPlatformHost = true;
+    console.warn(
+      '[platform-admin] PLATFORM_HOST is not set. The host guard returns 404 for every request. Set PLATFORM_HOST to the exact host you open (for example admin.example.com), then redeploy.',
+    );
+  }
+
   return {
     platformHost,
     allowedDevHosts: splitList(process.env.PLATFORM_ALLOWED_DEV_HOSTS).map((host) =>
-      host.toLowerCase(),
+      normalizeConfiguredHost(host),
     ),
     isDevelopment: process.env.NODE_ENV !== 'production',
     ipAllowlist: splitList(process.env.PLATFORM_IP_ALLOWLIST),

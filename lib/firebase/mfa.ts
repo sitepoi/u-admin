@@ -149,6 +149,12 @@ export async function signOutFirebaseClient(): Promise<void> {
 /** Maps Firebase auth errors to safe, user-facing text. */
 export function describeAuthError(error: unknown): string {
   if (error instanceof FirebaseError) {
+    // Some SDK versions use a long code here, for example
+    // auth/api-key-not-valid.-please-pass-a-valid-api-key.
+    if (error.code.startsWith('auth/api-key-not-valid')) {
+      return 'The Firebase Web API key is invalid. Check NEXT_PUBLIC_FIREBASE_API_KEY and redeploy.';
+    }
+
     switch (error.code) {
       case 'auth/invalid-credential':
       case 'auth/wrong-password':
@@ -162,6 +168,14 @@ export function describeAuthError(error: unknown): string {
         return 'This account has been disabled.';
       case 'auth/network-request-failed':
         return 'The authentication service could not be reached.';
+      case 'auth/invalid-api-key':
+        return 'The Firebase Web API key is invalid. Check NEXT_PUBLIC_FIREBASE_API_KEY and redeploy.';
+      case 'auth/unauthorized-domain':
+        return 'This domain is not authorized in Firebase. Add it under Authentication -> Settings -> Authorized domains.';
+      case 'auth/operation-not-allowed':
+        return 'Email/password sign-in is disabled in the Firebase project.';
+      case 'auth/configuration-not-found':
+        return 'Firebase Authentication is not configured for this project.';
       case 'auth/code-expired':
         return 'The verification code expired. Start again.';
       case 'auth/invalid-verification-code':
@@ -169,7 +183,8 @@ export function describeAuthError(error: unknown): string {
       case 'auth/multi-factor-auth-required':
         return 'Multi-factor authentication is required.';
       default:
-        return 'Sign-in failed. Please try again.';
+        // The code is safe to show and makes configuration problems diagnosable.
+        return `Sign-in failed (${error.code}). Please try again.`;
     }
   }
 

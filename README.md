@@ -275,6 +275,10 @@ control.
 
 ## 7. Environment reference
 
+A detailed HTML reference with per-variable sourcing, common mistakes and the exact
+same/different rules across the Admin app, Secret API, CMS and Vercel is at
+`docs/environment-variables.html`.
+
 ### Public (safe in the browser)
 
 | Variable | Required | Purpose |
@@ -421,6 +425,12 @@ POST {CMS_SYSTEM_API_BASE_URL}/api/system/{CMS_SYSTEM_API_KEY}/ctgc/{tenantId}/{
 POST {CMS_SYSTEM_API_BASE_URL}/api/system/{CMS_SYSTEM_API_KEY}/rfti/{tenantId}/{cmsProjectId}
 ```
 
+`CMS_SYSTEM_API_BASE_URL` and `CMS_SYSTEM_API_KEY` are platform-level values, not tenant
+values. The CMS base URL is the host that serves `/api/system/...` (for example
+`https://cms.uniconhub.com`), and the key is the single system key configured in the CMS.
+The tenant id and `cmsProjectId` are path parameters supplied at runtime from the tenant
+record, never environment variables.
+
 - `ctgc` creates the CMS tenant.
 - `rfti` retries first-party enrollment and is called when `ctgc` returns `409` or `422`.
 - 2xx means success. Anything else becomes `tenant.provision_failed` with a sanitized
@@ -491,10 +501,27 @@ Scheduling:
 2. Framework preset: Next.js. Build command: `npm run build`.
 3. Add every server secret as a Production environment variable (and Preview only if
    required). Use Vercel's sensitive/encrypted variables.
-4. Add `admin.uniconhub.com` as the only domain. Do not rely on the `.vercel.app` URL:
-   the host guard returns 404 for it, but DNS and certificate transparency still expose
-   the hostname.
-5. Deploy. Vercel builds on push. There is no local build requirement.
+4. Set `PLATFORM_HOST` to the **exact host you will open**, with no scheme and no path.
+   - First smoke test: use the production Vercel domain, for example
+     `u-admin.vercel.app`.
+   - Real deployment: add `admin.uniconhub.com` under Settings -> Domains, set
+     `PLATFORM_HOST=admin.uniconhub.com`, and redeploy.
+   A mismatch produces `Not Found` on every URL. Preview deployment URLs are different
+   hosts and are rejected by design.
+5. Redeploy after changing environment variables. `NEXT_PUBLIC_*` values are baked into
+   the build, so they only apply after a new deployment. Server variables are read at
+   runtime, but a redeploy is the reliable way to pick up every change.
+6. Deploy. Vercel builds on push. There is no local build requirement.
+
+Vercel smoke test:
+
+```text
+https://<your-host>/api/platform/health   -> 200 {"ok":true,...}
+https://<your-host>/login                 -> 200 login form
+```
+
+If `/api/platform/health` returns `Not Found`, `PLATFORM_HOST` does not match the Host
+header. Check the runtime logs for the `PLATFORM_HOST is not set` warning.
 
 ### 11.2 Access proxy
 
@@ -544,7 +571,7 @@ Middleware sets on every response:
 
 ```bash
 npm run typecheck
-npm test              # 213 tests: unit, integration, security
+npm test              # 214 tests: unit, integration, security
 npm run test:e2e      # 6 Playwright flows with mocked CMS + Secret API
 ```
 
@@ -620,7 +647,12 @@ call. Reveal responses are never logged and never cached.
 
 | Symptom | Likely cause |
 | --- | --- |
-| 404 on every page | No `.env.local`, or `Host` does not match `PLATFORM_HOST` / `PLATFORM_ALLOWED_DEV_HOSTS`. In development the 404 body lists the variables to set. Restart the dev server after editing env |
+| 404 on every page (local) | No `.env.local`, or `Host` does not match `PLATFORM_HOST` / `PLATFORM_ALLOWED_DEV_HOSTS`. In development the 404 body lists the variables to set. Restart the dev server after editing env |
+| 404 on every page (Vercel) | `PLATFORM_HOST` is unset, has a scheme/path, or is not the host you opened. Set it to the exact bare host, redeploy, then test `/api/platform/health`. Visiting the `*.vercel.app` URL while `PLATFORM_HOST=admin.uniconhub.com` returns 404 by design |
+| `NEXT_PUBLIC_*` changes have no effect | They are inlined at build time; redeploy after changing them |
+| Sign-in says `Component auth has not been registered yet` | Duplicate `@firebase/app` installs. Keep the `overrides` entry in `package.json` (`@firebase/app`), run `npm install`, and confirm `npm ls @firebase/app --all` shows a single version. Redeploy after the fix |
+| Sign-in says `auth/api-key-not-valid` | `NEXT_PUBLIC_FIREBASE_API_KEY` is wrong, or the deployment predates the value |
+| Sign-in says `auth/unauthorized-domain` | Add the exact host to Firebase Authentication -> Settings -> Authorized domains |
 | Redirect loop to `/login` | Session cookie rejected: check `PLATFORM_FIREBASE_*` and the allowlist |
 | `401 UNAUTHORIZED` after MFA | Email not in `PLATFORM_ADMIN_EMAILS`, or the user has no `platformRole` claim |
 | `403 MFA_REQUIRED` | The Firebase user has no enrolled second factor |
