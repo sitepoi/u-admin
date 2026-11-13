@@ -2,13 +2,13 @@
 
 import { useState, type FormEvent } from 'react';
 import { signOut, multiFactor, signInWithEmailAndPassword, TotpMultiFactorGenerator } from 'firebase/auth';
-import type { TotpSecret, User } from 'firebase/auth';
+import type { TotpSecret, User, UserCredential } from 'firebase/auth';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { TextInput } from '@/components/ui/form';
 import { getFirebaseAuthClient } from '@/lib/firebase/client';
-import { describeAuthError } from '@/lib/firebase/mfa';
+import { describeAuthError, describeEnrollmentError } from '@/lib/firebase/mfa';
 
 type EnrollmentStep = 'credentials' | 'enroll' | 'done';
 
@@ -36,10 +36,31 @@ export function MfaEnrollForm() {
     setErrorMessage(null);
     setPending(true);
 
-    try {
-      const auth = getFirebaseAuthClient();
-      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    const auth = getFirebaseAuthClient();
+    let credential: UserCredential;
 
+    // Password failures and enrolment failures need different explanations:
+    // auth/operation-not-allowed means "provider disabled" in the first step
+    // but "TOTP MFA not enabled" in the second.
+    try {
+      credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code?: string }).code === 'auth/multi-factor-auth-required'
+      ) {
+        setErrorMessage(
+          'This account already has a second factor. Use the normal sign-in page.',
+        );
+      } else {
+        setErrorMessage(describeAuthError(error));
+      }
+      setPending(false);
+      return;
+    }
+
+    try {
       if (multiFactor(credential.user).enrolledFactors.length > 0) {
         await signOut(auth);
         setErrorMessage(
@@ -57,17 +78,7 @@ export function MfaEnrollForm() {
       setSharedSecret(generatedSecret.secretKey);
       setStep('enroll');
     } catch (error) {
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error as { code?: string }).code === 'auth/multi-factor-auth-required'
-      ) {
-        setErrorMessage(
-          'This account already has a second factor. Use the normal sign-in page.',
-        );
-      } else {
-        setErrorMessage(describeAuthError(error));
-      }
+      setErrorMessage(describeEnrollmentError(error));
     } finally {
       setPending(false);
     }
@@ -94,7 +105,7 @@ export function MfaEnrollForm() {
       setEnrolledUser(null);
       setStep('done');
     } catch (error) {
-      setErrorMessage(describeAuthError(error));
+      setErrorMessage(describeEnrollmentError(error));
     } finally {
       setPending(false);
     }

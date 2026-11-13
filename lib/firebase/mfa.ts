@@ -173,7 +173,7 @@ export function describeAuthError(error: unknown): string {
       case 'auth/unauthorized-domain':
         return 'This domain is not authorized in Firebase. Add it under Authentication -> Settings -> Authorized domains.';
       case 'auth/operation-not-allowed':
-        return 'Email/password sign-in is disabled in the Firebase project.';
+        return 'This authentication method is not enabled for the Firebase project (auth/operation-not-allowed). Check Authentication -> Sign-in method.';
       case 'auth/configuration-not-found':
         return 'Firebase Authentication is not configured for this project.';
       case 'auth/code-expired':
@@ -192,4 +192,36 @@ export function describeAuthError(error: unknown): string {
     return error.message.slice(0, 300);
   }
   return 'Sign-in failed. Please try again.';
+}
+
+/**
+ * Enrolment-specific text. The password step has already succeeded here, so
+ * `auth/operation-not-allowed` means the project refuses TOTP enrolment, not
+ * that email/password sign-in is disabled.
+ */
+export function describeEnrollmentError(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    switch (error.code) {
+      case 'auth/operation-not-allowed':
+        return 'The Firebase project does not allow authenticator-app enrolment (auth/operation-not-allowed). Enable Identity Platform multi-factor authentication, with the Authenticator app factor, for this project.';
+      case 'auth/unsupported-first-factor':
+        return 'This project does not allow multi-factor authentication for email/password accounts.';
+      case 'auth/unsupported-second-factor':
+        return 'This project does not support authenticator-app second factors.';
+      case 'auth/missing-multi-factor-session':
+      case 'auth/invalid-multi-factor-session':
+        return 'The enrolment session expired. Enter your password again to restart.';
+      case 'auth/second-factor-already-in-use':
+        return 'This account already has that second factor. Use the normal sign-in page.';
+      case 'auth/maximum-second-factor-count-exceeded':
+        return 'This account reached the maximum number of second factors.';
+      case 'auth/invalid-verification-code':
+        return 'The verification code is incorrect.';
+      case 'auth/code-expired':
+        return 'The verification code expired. Restart enrolment.';
+      default:
+        return describeAuthError(error);
+    }
+  }
+  return describeAuthError(error);
 }
