@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { signOut, multiFactor, signInWithEmailAndPassword, TotpMultiFactorGenerator } from 'firebase/auth';
 import type { TotpSecret, User, UserCredential } from 'firebase/auth';
+import { QRCodeSVG } from 'qrcode.react';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ export function MfaEnrollForm() {
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [secondsUntilResend, setSecondsUntilResend] = useState(0);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (resendAvailableAt <= Date.now()) {
@@ -69,6 +71,12 @@ export function MfaEnrollForm() {
       setEnrolledUser(user);
       setTotpSecret(generatedSecret);
       setSharedSecret(generatedSecret.secretKey);
+      setQrCodeUrl(
+        generatedSecret.generateQrCodeUrl(
+          user.email ?? email.trim(),
+          'UniconHub Platform Admin',
+        ),
+      );
       setStep('enroll');
     } catch (error) {
       if (isUnverifiedEmailError(error)) {
@@ -92,6 +100,7 @@ export function MfaEnrollForm() {
     setEnrolledUser(null);
     setEmailVerificationSent(false);
     setResendAvailableAt(0);
+    setQrCodeUrl(null);
     setErrorMessage(null);
   }
 
@@ -227,6 +236,7 @@ export function MfaEnrollForm() {
       setVerificationCode('');
       setSharedSecret(null);
       setTotpSecret(null);
+      setQrCodeUrl(null);
       setEnrolledUser(null);
       setStep('done');
     } catch (error) {
@@ -332,19 +342,39 @@ export function MfaEnrollForm() {
         <form className="space-y-4" onSubmit={handleEnrollSubmit}>
           <div>
             <p className="text-sm font-medium text-slate-800">
-              1. Add this key to your authenticator app
+              1. Add the account to your authenticator app
             </p>
-            <pre
-              className="secret-output mt-2"
-              aria-label="Authenticator shared secret"
-              data-testid="totp-shared-secret"
-            >
-              {sharedSecret ?? ''}
-            </pre>
             <p className="mt-1 text-xs text-slate-500">
-              Enter the key manually in Google Authenticator, 1Password, Authy or a hardware token.
-              It is shown once and never stored by this application.
+              Scan the QR code, or enter the key manually.
             </p>
+
+            <div className="mt-3 flex flex-wrap items-start gap-4">
+              {qrCodeUrl ? (
+                <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
+                  <QRCodeSVG
+                    value={qrCodeUrl}
+                    size={160}
+                    marginSize={4}
+                    title="Authenticator enrolment QR code"
+                  />
+                </div>
+              ) : null}
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-600">Key for manual entry</p>
+                <pre
+                  className="secret-output mt-1"
+                  aria-label="Authenticator shared secret"
+                  data-testid="totp-shared-secret"
+                >
+                  {sharedSecret ?? ''}
+                </pre>
+                <p className="mt-1 text-xs text-slate-500">
+                  Enter it in Google Authenticator, 1Password, Authy or a hardware token. It is
+                  shown once and never stored by this application.
+                </p>
+              </div>
+            </div>
           </div>
 
           <TextInput

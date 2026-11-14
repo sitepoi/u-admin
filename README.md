@@ -282,6 +282,25 @@ control.
 - A non-allowlisted email receives `401 UNAUTHORIZED`.
 - A session without a second factor receives `403 MFA_REQUIRED`.
 
+### 6.9 One-off admin commands
+
+These are operational commands, not part of the app runtime:
+
+```bash
+# Enable TOTP MFA on the platform project (one time per project).
+npm run enable-totp-mfa
+
+# Mark a user's email verified when the UI verification email is unavailable.
+npm run enable-totp-mfa -- --verify-email name@uniconhub.com
+
+# Set or change the platform role claim.
+npm run set-platform-role -- --email name@uniconhub.com --role owner --yes
+```
+
+`enable-totp-mfa` reads `PLATFORM_FIREBASE_*`, or set `GOOGLE_APPLICATION_CREDENTIALS`
+to a service account JSON. It merges TOTP into the existing MFA configuration and
+never disables other providers. Run it with `--help` for the full usage.
+
 ## 7. Environment reference
 
 A detailed HTML reference with per-variable sourcing, common mistakes and the exact

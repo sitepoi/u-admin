@@ -28,6 +28,27 @@ import { getAuth } from 'firebase-admin/auth';
 const DEFAULT_ADJACENT_INTERVALS = 5;
 const MAX_ADJACENT_INTERVALS = 10;
 
+const USAGE = `
+Enable TOTP (authenticator app) multi-factor authentication on the platform
+Firebase project, optionally marking an admin email verified.
+
+Usage:
+  npm run enable-totp-mfa
+  npm run enable-totp-mfa -- --verify-email name@uniconhub.com
+  npm run enable-totp-mfa -- --intervals=5
+
+Options:
+  --verify-email <address>  Mark an existing Firebase user's email as verified.
+  --intervals=<0-10>        Accepted TOTP adjacent intervals (default 5).
+  --help                    Show this text.
+
+Credentials (in order of precedence):
+  1. PLATFORM_FIREBASE_PROJECT_ID + PLATFORM_FIREBASE_CLIENT_EMAIL +
+     PLATFORM_FIREBASE_PRIVATE_KEY
+  2. GOOGLE_APPLICATION_CREDENTIALS pointing at a service account JSON
+  3. Application Default Credentials
+`;
+
 function readArgument(name) {
   const prefix = `--${name}=`;
   const inline = process.argv.find((argument) => argument.startsWith(prefix));
@@ -102,6 +123,11 @@ function mergeTotpProviderConfig(existingConfig, adjacentIntervals) {
 }
 
 async function main() {
+  if (hasFlag('help')) {
+    console.log(USAGE.trim());
+    return;
+  }
+
   const adjacentIntervals = parseAdjacentIntervals();
   const emailToVerify = readArgument('verify-email');
   const { projectId, credential } = buildCredential();
