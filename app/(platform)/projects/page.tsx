@@ -1,45 +1,60 @@
 import Link from 'next/link';
 
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import { Alert } from '@/components/ui/alert';
 import { buttonClassName } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/card';
-import { ProjectCreateDialog } from '@/components/projects/project-create-dialog';
-import { formatDateTime } from '@/lib/client/format';
-import { roleCan } from '@/lib/server/auth/roles';
 import { requireServerSession } from '@/lib/server/auth/server-session';
-import { listProjects } from '@/lib/server/projects/project-service';
+import { listRelayProjects } from '@/lib/server/relay/relay-client';
+import type { RelayProjectSummary } from '@/lib/shared/platform-types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProjectsPage() {
-  const session = await requireServerSession();
-  const projects = await listProjects();
-  const canManageProjects = roleCan(session.role, 'project:manage');
+  await requireServerSession();
+
+  let projects: RelayProjectSummary[] = [];
+  let readError: string | null = null;
+  try {
+    projects = await listRelayProjects();
+  } catch (error) {
+    readError = error instanceof Error ? error.message : 'The relay could not be read.';
+  }
+
+  const tenantCount = projects.reduce((total, project) => total + project.tenantCount, 0);
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Projects</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Each project is a Firebase/GCP project that contains its own tenants. The admin
-            project stores only this registry, never tenant documents.
-          </p>
-        </div>
-        {canManageProjects ? <ProjectCreateDialog /> : null}
+      <header>
+        <h1 className="text-2xl font-semibold text-slate-900">Projects</h1>
+        <p className="mt-1 max-w-3xl text-sm text-slate-600">
+          Projects are derived from the sitepoi-relay <code>applications</code> registry. A project
+          exists as the <code>projectId</code> inside each application's decoded Firebase settings.
+          There is no projects collection, no tenants collection, and no manual registry.
+        </p>
       </header>
+
+      {readError ? (
+        <Alert tone="danger" title="Could not read sitepoi-relay">
+          {readError}
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader
-          title="Managed projects"
-          description={`${projects.length} project(s) registered.`}
+          title="Projects in the relay"
+          description={`${projects.length} project(s), ${tenantCount} tenant(s). Read-only.`}
         />
         <CardBody className="px-0 py-0">
-          {projects.length === 0 ? (
+          {readError ? (
+            <p className="px-5 py-6 text-sm text-slate-500">
+              Check <code>PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON</code> and the service account's
+              read role on the relay project.
+            </p>
+          ) : projects.length === 0 ? (
             <div className="px-5 py-6">
               <EmptyState
-                title="No projects registered"
-                description="Add the first Firebase project to start reading and managing its tenants."
+                title="No applications found"
+                description="The relay applications collection is empty, or the service account cannot read it."
               />
             </div>
           ) : (
@@ -47,41 +62,18 @@ export default async function ProjectsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">Project</th>
-                    <th scope="col">Tenant source</th>
-                    <th scope="col">Access</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Updated</th>
+                    <th scope="col">Project id</th>
+                    <th scope="col">Tenants</th>
+                    <th scope="col">Hostnames</th>
                     <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {projects.map((project) => (
                     <tr key={project.projectId}>
-                      <td>
-                        <span className="block font-medium text-slate-900">
-                          {project.displayName}
-                        </span>
-                        <span className="font-mono text-xs text-slate-500">
-                          {project.projectId}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="text-sm text-slate-700">
-                          {project.tenantSource === 'identity-platform'
-                            ? 'Identity Platform'
-                            : `Firestore: ${project.tenantCollection}`}
-                        </span>
-                      </td>
-                      <td>
-                        <Badge tone={project.accessMode === 'read-write' ? 'warning' : 'neutral'}>
-                          {project.accessMode}
-                        </Badge>
-                      </td>
-                      <td>
-                        <StatusBadge status={project.status} />
-                      </td>
-                      <td className="whitespace-nowrap">{formatDateTime(project.updatedAt)}</td>
+                      <td className="font-mono text-xs text-slate-900">{project.projectId}</td>
+                      <td className="text-sm text-slate-700">{project.tenantCount}</td>
+                      <td className="text-sm text-slate-700">{project.hostCount}</td>
                       <td>
                         <Link
                           href={`/projects/${project.projectId}/tenants`}

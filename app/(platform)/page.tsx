@@ -9,7 +9,7 @@ import { formatBytes, formatDateTime, formatNumber, formatRelative } from '@/lib
 import { roleCan } from '@/lib/server/auth/roles';
 import { requireServerSession } from '@/lib/server/auth/server-session';
 import { getPlatformStore } from '@/lib/server/firestore/store-provider';
-import { listProjects } from '@/lib/server/projects/project-service';
+import { listRelayProjects } from '@/lib/server/relay/relay-client';
 import { getReportingSummary } from '@/lib/server/reporting/collector';
 import { getPlatformSettings } from '@/lib/server/settings/settings-service';
 
@@ -20,7 +20,7 @@ export default async function DashboardPage() {
 
   const [reportingSummary, projects, platformSettings] = await Promise.all([
     getReportingSummary(),
-    listProjects(),
+    listRelayProjects().catch(() => []),
     getPlatformSettings().catch(() => null),
   ]);
 
@@ -37,10 +37,10 @@ export default async function DashboardPage() {
   const platformMetrics =
     snapshotMetrics && 'totals' in snapshotMetrics ? snapshotMetrics : null;
 
-  const activeProjectCount = projects.filter((project) => project.status === 'active').length;
-  const disabledProjectCount = projects.filter(
-    (project) => project.status === 'disabled',
-  ).length;
+  const totalTenantCount = projects.reduce(
+    (total, project) => total + project.tenantCount,
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -79,7 +79,7 @@ export default async function DashboardPage() {
         <StatTile
           label="Projects"
           value={formatNumber(projects.length)}
-          hint={`${activeProjectCount} active, ${disabledProjectCount} disabled`}
+          hint={`${formatNumber(totalTenantCount)} tenant(s) in the relay`}
         />
         <StatTile
           label="Secret delivery failures"
@@ -200,13 +200,13 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader
-            title="Managed projects"
-            description="Each project holds its own tenants. No tenant is stored in the admin project."
+            title="Projects in the relay"
+            description="Derived from sitepoi-relay applications. No tenant is stored in the admin project."
           />
           <CardBody>
             {projects.length === 0 ? (
               <p className="text-sm text-slate-500">
-                No projects registered. Add one to start managing its tenants.
+                No relay applications found, or the relay could not be read.
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
@@ -215,14 +215,14 @@ export default async function DashboardPage() {
                     <div className="flex items-center justify-between gap-2">
                       <Link
                         href={`/projects/${project.projectId}/tenants`}
-                        className="text-sm font-medium text-indigo-700 hover:underline"
+                        className="font-mono text-sm font-medium text-indigo-700 hover:underline"
                       >
-                        {project.displayName}
+                        {project.projectId}
                       </Link>
-                      <StatusBadge status={project.status} />
+                      <Badge>{project.tenantCount} tenant(s)</Badge>
                     </div>
-                    <p className="mt-1 font-mono text-xs text-slate-500">
-                      {project.projectId}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {project.hostCount} hostname(s)
                     </p>
                   </li>
                 ))}

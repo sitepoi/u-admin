@@ -86,6 +86,35 @@ export interface ProjectTenantSummary {
   source: ProjectTenantSource;
 }
 
+/**
+ * Relay-derived project. The relay has no projects collection: a project is
+ * the projectId inside each application's decoded fbSettings.
+ */
+export interface RelayProjectSummary {
+  projectId: string;
+  tenantCount: number;
+  hostCount: number;
+}
+
+/** A relay application document, decoded. One document is one tenant. */
+export interface RelayTenantSummary {
+  /** Firestore document id in the relay applications collection. */
+  applicationId: string;
+  tenantId: string;
+  authTenant: string;
+  projectId: string;
+  hostNames: string[];
+  tableExtension: string;
+}
+
+/** Tenant detail enriched from settings/website-settings-{tenantId}. */
+export interface RelayTenantDetail extends RelayTenantSummary {
+  companyName: string | null;
+  language: string | null;
+  subdomain: string | null;
+  databaseProjectName: string | null;
+}
+
 export const AUDIT_ACTIONS = [
   'tenant.created',
   'tenant.updated',

@@ -2,15 +2,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Alert } from '@/components/ui/alert';
-import { StatusBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { buttonClassName } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { ProjectTenantEditForm } from '@/components/projects/project-tenant-edit-form';
-import { roleCan } from '@/lib/server/auth/roles';
 import { requireServerSession } from '@/lib/server/auth/server-session';
-import { getProject } from '@/lib/server/projects/project-service';
-import { getProjectTenant } from '@/lib/server/projects/project-data-service';
-import type { ProjectTenantSummary } from '@/lib/shared/platform-types';
+import { getRelayTenantDetail } from '@/lib/server/relay/relay-client';
+import type { RelayTenantDetail } from '@/lib/shared/platform-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,43 +16,37 @@ export default async function ProjectTenantPage({
 }: {
   params: Promise<{ projectId: string; tenantId: string }>;
 }) {
-  const session = await requireServerSession();
+  await requireServerSession();
   const { projectId, tenantId } = await params;
 
-  const project = await getProject(projectId);
-  if (!project) notFound();
-
-  let tenant: ProjectTenantSummary | null = null;
+  let tenant: RelayTenantDetail | null = null;
   let readError: string | null = null;
   try {
-    tenant = await getProjectTenant(project, tenantId);
+    tenant = await getRelayTenantDetail(tenantId);
   } catch (error) {
     readError = error instanceof Error ? error.message : 'The tenant could not be read.';
   }
   if (!tenant && !readError) notFound();
-
-  const canWriteTenants =
-    roleCan(session.role, 'tenant:write') && project.accessMode === 'read-write';
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-            {project.displayName} / tenant
+            {projectId} / relay tenant
           </p>
           <h1 className="text-2xl font-semibold text-slate-900">
-            {tenant?.displayName ?? tenantId}
+            {tenant?.companyName ?? tenant?.tenantId ?? tenantId}
           </h1>
-          <p className="mt-1 font-mono text-xs text-slate-500">{tenantId}</p>
-          {project.accessMode === 'read-only' ? (
-            <p className="mt-2">
-              <StatusBadge status="unknown" label="Read-only project" />
-            </p>
-          ) : null}
+          <p className="mt-1 font-mono text-xs text-slate-500">
+            {tenant?.applicationId ?? tenantId}
+          </p>
+          <p className="mt-2">
+            <Badge tone="neutral">Read-only</Badge>
+          </p>
         </div>
         <Link
-          href={`/projects/${project.projectId}/tenants`}
+          href={`/projects/${projectId}/tenants`}
           className={buttonClassName('secondary', 'sm')}
         >
           Back to tenants
@@ -72,11 +63,11 @@ export default async function ProjectTenantPage({
         <>
           <Card>
             <CardHeader
-              title="Tenant details"
-              description={`Read directly from project ${project.projectId}. Nothing is stored in the admin project.`}
+              title="Relay registry"
+              description="Read from the sitepoi-relay applications collection. Nothing is stored in the admin project."
             />
             <CardBody>
-              <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
                     Tenant id
@@ -85,23 +76,33 @@ export default async function ProjectTenantPage({
                 </div>
                 <div>
                   <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-                    Status
+                    Firebase project
                   </dt>
-                  <dd className="mt-0.5">
-                    <StatusBadge status={tenant.status} />
+                  <dd className="mt-0.5 font-mono text-slate-900">{tenant.projectId}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                    Auth tenant
+                  </dt>
+                  <dd className="mt-0.5 font-mono text-slate-900">
+                    {tenant.authTenant || '-'}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-                    Source
+                    Table extension
                   </dt>
-                  <dd className="mt-0.5 text-slate-900">{tenant.source}</dd>
+                  <dd className="mt-0.5 font-mono text-slate-900">
+                    {tenant.tableExtension || '-'}
+                  </dd>
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-                    Project
+                    Hostnames
                   </dt>
-                  <dd className="mt-0.5 font-mono text-slate-900">{project.projectId}</dd>
+                  <dd className="mt-0.5 break-words text-slate-900">
+                    {tenant.hostNames.length > 0 ? tenant.hostNames.join(', ') : '-'}
+                  </dd>
                 </div>
               </dl>
             </CardBody>
@@ -109,25 +110,43 @@ export default async function ProjectTenantPage({
 
           <Card>
             <CardHeader
-              title="Edit tenant"
-              description={
-                canWriteTenants
-                  ? 'Changes are written to the managed project.'
-                  : 'Your role can read tenants but not modify them.'
-              }
+              title="Tenant settings"
+              description={`Best effort read from ${tenant.projectId}/settings/website-settings-${tenant.tenantId}.`}
             />
             <CardBody>
-              {canWriteTenants ? (
-                <ProjectTenantEditForm
-                  projectId={project.projectId}
-                  tenant={tenant}
-                  tenantSource={project.tenantSource}
-                />
-              ) : (
-                <p className="text-sm text-slate-500">
-                  Owners, admins and operators can edit tenant records.
-                </p>
-              )}
+              <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                    Company name
+                  </dt>
+                  <dd className="mt-0.5 text-slate-900">{tenant.companyName ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                    Language
+                  </dt>
+                  <dd className="mt-0.5 text-slate-900">{tenant.language ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                    Subdomain
+                  </dt>
+                  <dd className="mt-0.5 text-slate-900">{tenant.subdomain ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                    Settings project name
+                  </dt>
+                  <dd className="mt-0.5 font-mono text-slate-900">
+                    {tenant.databaseProjectName ?? '-'}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-4 text-xs text-slate-500">
+                Missing values mean the settings document could not be read or does not contain
+                that field. The relay registry above is still authoritative for the project and
+                host mapping.
+              </p>
             </CardBody>
           </Card>
         </>

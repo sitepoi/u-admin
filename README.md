@@ -302,45 +302,44 @@ npm run set-platform-role -- --email name@uniconhub.com --role owner --yes
 to a service account JSON. It merges TOTP into the existing MFA configuration and
 never disables other providers. Run it with `--help` for the full usage.
 
-### 6.10 Managed projects and their tenants
+### 6.10 Projects and tenants from sitepoi-relay
 
-The Admin app never stores tenant records. It stores a project registry in
-`platform_projects` in the admin project, and reads or writes tenants inside each
-managed project on demand.
+sitepoi-relay is the source of truth. There is no projects collection and no tenants
+collection. The relay project (`SITEPOI_RELAY_PROJECT_ID`, default `sitepoi-relay`)
+has one collection, `applications`:
 
-1. Open `/projects` and choose **Add project**.
-2. Set the Firebase/GCP project id, a display name, and the tenant source:
-   - **Firestore collection**: set the collection id (`tenants` by default) and the
-     field names for id, name and status.
-   - **Identity Platform tenants**: tenants are read with the Admin SDK
-     `tenantManager()`. Tenant ids are assigned by Identity Platform.
-3. Open the project to see its tenants. The project selector switches between
-   projects; selecting a project never selects a tenant.
-4. Tenant create and edit actions are written directly to the managed project.
+- document id: `<tenantId>.uniconhub.com`
+- `id`: tenant short id
+- `hostNames`: hostname array
+- `fbSettings.base64`: base64 JSON containing `projectId`, `tenantId`, `authTenant`
+  and `tableExtension`
 
-Access mode:
+The app decodes `fbSettings.base64` server-side and groups applications by
+`projectId`. A project is not a document; it exists only as that decoded value.
+Each application is one tenant.
 
-- **Read-only** is the default. Tenant list and detail work; create and edit are
-  blocked before any write is attempted.
-- **Read and write** enables tenant create and edit against the project.
+1. Set `SITEPOI_RELAY_PROJECT_ID` (default `sitepoi-relay`).
+2. Set `PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON` to a service account with
+   `roles/datastore.viewer` on the relay project and on every tenant-hosting project.
+3. Open `/projects`. Projects and tenant counts appear automatically; there is no
+   manual project form and no collection name to enter.
+4. Open a project to list its relay applications, then a tenant to see its hostnames,
+   Auth tenant, table extension and settings read from
+   `settings/website-settings-{tenantId}`.
 
-Credentials:
+Read-only:
 
-- Set `PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON` to a service account with access to
-  every managed project.
-  - Firestore read-only: grant `roles/datastore.viewer` on each project.
-  - Firestore read/write: grant `roles/datastore.user` on each project.
-  - Identity Platform read-only: grant `roles/firebaseauth.viewer`.
-  - Identity Platform read/write: grant `roles/firebaseauth.admin`.
-- If the variable is absent, the app falls back to
-  `PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON`, which is normally read-only. Listing
-  works; create and edit return `PROJECT_ACCESS_FAILED` until write access is
-  granted.
-- The admin project keeps its own write access through `PLATFORM_FIREBASE_*`.
-  Never grant the cross-project account write access to the admin project unless
-  it is also the admin account.
-- The admin project's own tenant collection (`platform_tenants`) is legacy and is
-  no longer linked from the UI.
+- The app never writes to the relay or to tenant projects.
+- The settings enrichment is best effort. Missing read access on a tenant project
+  leaves those fields blank; the relay registry is still shown.
+- The relay is read with the Admin SDK, not with `SITEPOI_RELAY_APIKEY` or the
+  hardcoded CMS system key. Neither should be exposed to the browser for this app.
+
+Legacy:
+
+- `platform_projects`, `platform_tenants`, the manual project form and the tenant
+  create/edit forms are not part of the relay model. They are kept in the codebase
+  only for the old tests and can be removed in a cleanup.
 
 ## 7. Environment reference
 
@@ -385,6 +384,7 @@ same/different rules across the Admin app, Secret API, CMS and Vercel is at
 | `PLATFORM_CMS_HOST_SUFFIX` | Default host suffix for generated CMS hosts |
 | `PLATFORM_PUBLICWEBSITE_HOST_SUFFIX` | Default host suffix for generated website hosts |
 | `PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON` | Cross-project account for reading and managing tenants in managed projects |
+| `SITEPOI_RELAY_PROJECT_ID` | Relay Firestore project id. Default `sitepoi-relay` |
 | `PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON` | Dedicated read-only reporting account |
 | `PLATFORM_REPORTING_MAX_CONCURRENCY` | Default `3`, clamped to 1-10 |
 | `PLATFORM_REPORTING_TENANT_TIMEOUT_MS` | Default `10000` |
