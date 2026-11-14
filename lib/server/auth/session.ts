@@ -35,7 +35,9 @@ export function sessionFromIdentity(identity: VerifiedIdentity): PlatformSession
   const config = getPlatformConfig();
 
   if (!identity.email || !isEmailAllowlisted(identity.email, config.adminEmails)) {
-    throw ApiError.unauthorized('This account is not authorised for the platform.');
+    throw ApiError.unauthorized(
+      'This account is not authorised for the platform. Add the address to PLATFORM_ADMIN_EMAILS and redeploy.',
+    );
   }
 
   if (!identity.secondFactorPresent) {
@@ -43,7 +45,9 @@ export function sessionFromIdentity(identity: VerifiedIdentity): PlatformSession
   }
 
   if (!identity.platformRole || !isPlatformRole(identity.platformRole)) {
-    throw ApiError.forbidden('Your account has no platform role.');
+    throw ApiError.forbidden(
+      'Your account has no platform role. Set the platformRole claim with the set-platform-role script, then sign in again.',
+    );
   }
 
   return {
