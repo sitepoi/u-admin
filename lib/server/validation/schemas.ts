@@ -3,7 +3,12 @@ import 'server-only';
 import { z } from 'zod';
 
 import { DELIVERY_MODES, MAX_JSON_BODY_BYTES, PLATFORM_ROLES } from '@/lib/shared/constants';
-import { AUDIT_RESULTS } from '@/lib/shared/platform-types';
+import {
+  AUDIT_RESULTS,
+  PROJECT_ACCESS_MODES,
+  PROJECT_STATUSES,
+  PROJECT_TENANT_SOURCES,
+} from '@/lib/shared/platform-types';
 import { ApiError } from '@/lib/server/errors';
 
 const domainSchema = z.string().trim().min(3).max(255);
@@ -34,6 +39,61 @@ export const createTenantRequestSchema = z
   .strict();
 
 export type CreateTenantRequest = z.infer<typeof createTenantRequestSchema>;
+
+export const createProjectRequestSchema = z
+  .object({
+    projectId: z.string().trim().min(6).max(30),
+    displayName: z.string().trim().min(2).max(80),
+    tenantSource: z.enum(PROJECT_TENANT_SOURCES).optional(),
+    accessMode: z.enum(PROJECT_ACCESS_MODES).optional(),
+    tenantCollection: z.string().trim().min(1).max(100).optional(),
+    tenantIdField: z.string().trim().min(1).max(80).optional(),
+    tenantNameField: z.string().trim().min(1).max(80).optional(),
+    tenantStatusField: z.string().trim().min(1).max(80).optional(),
+  })
+  .strict();
+
+export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+
+export const updateProjectRequestSchema = z
+  .object({
+    displayName: z.string().trim().min(2).max(80).optional(),
+    status: z.enum(PROJECT_STATUSES).optional(),
+    tenantSource: z.enum(PROJECT_TENANT_SOURCES).optional(),
+    accessMode: z.enum(PROJECT_ACCESS_MODES).optional(),
+    tenantCollection: z.string().trim().min(1).max(100).optional(),
+    tenantIdField: z.string().trim().min(1).max(80).optional(),
+    tenantNameField: z.string().trim().min(1).max(80).optional(),
+    tenantStatusField: z.string().trim().min(1).max(80).optional(),
+  })
+  .strict()
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: 'At least one field is required.',
+  });
+
+export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
+
+export const createProjectTenantRequestSchema = z
+  .object({
+    tenantId: z.string().trim().min(1).max(128).optional(),
+    displayName: z.string().trim().min(1).max(120),
+    status: z.string().trim().max(40).optional(),
+  })
+  .strict();
+
+export type CreateProjectTenantRequest = z.infer<typeof createProjectTenantRequestSchema>;
+
+export const updateProjectTenantRequestSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(120).optional(),
+    status: z.string().trim().max(40).optional(),
+  })
+  .strict()
+  .refine((value) => value.displayName !== undefined || value.status !== undefined, {
+    message: 'At least one field is required.',
+  });
+
+export type UpdateProjectTenantRequest = z.infer<typeof updateProjectTenantRequestSchema>;
 
 export const updateTenantRequestSchema = z
   .object({

@@ -18,6 +18,7 @@ import { ApiError } from '@/lib/server/errors';
  */
 const EXPECTED_MATRIX: Record<Permission, readonly PlatformRole[]> = {
   'platform:read': ['owner', 'admin', 'operator', 'auditor'],
+  'project:manage': ['owner', 'admin'],
   'tenant:write': ['owner', 'admin', 'operator'],
   'tenant:provision': ['owner', 'admin'],
   'tenant:archive': ['owner'],
@@ -80,8 +81,8 @@ describe('platform role matrix', () => {
   });
 
   it('renders a complete matrix for the settings page', () => {
-    expect(ROLE_MATRIX_ROWS).toHaveLength(11);
+    expect(ROLE_MATRIX_ROWS).toHaveLength(ALL_PERMISSIONS.length);
     const renderedPermissions = ROLE_MATRIX_ROWS.map((row) => row.permission);
-    expect(new Set(renderedPermissions).size).toBe(11);
+    expect(new Set(renderedPermissions).size).toBe(ALL_PERMISSIONS.length);
   });
 });

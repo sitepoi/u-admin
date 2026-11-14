@@ -9,6 +9,9 @@ export const API_ERROR_CODES = [
   'TENANT_NOT_FOUND',
   'TENANT_RESERVED',
   'TENANT_CONFLICT',
+  'PROJECT_NOT_FOUND',
+  'PROJECT_CONFLICT',
+  'PROJECT_ACCESS_FAILED',
   'PROVISIONING_IN_PROGRESS',
   'SECRET_API_UNAVAILABLE',
   'SECRET_NOT_FOUND',
@@ -27,6 +30,9 @@ export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
   TENANT_NOT_FOUND: 404,
   TENANT_RESERVED: 409,
   TENANT_CONFLICT: 409,
+  PROJECT_NOT_FOUND: 404,
+  PROJECT_CONFLICT: 409,
+  PROJECT_ACCESS_FAILED: 502,
   PROVISIONING_IN_PROGRESS: 409,
   SECRET_API_UNAVAILABLE: 503,
   SECRET_NOT_FOUND: 404,
@@ -84,6 +90,18 @@ export class ApiError extends Error {
     return entity === 'tenant'
       ? new ApiError('TENANT_NOT_FOUND', 'Tenant not found.')
       : new ApiError('SECRET_NOT_FOUND', 'Secret not found.');
+  }
+
+  static projectNotFound(): ApiError {
+    return new ApiError('PROJECT_NOT_FOUND', 'Project not found.');
+  }
+
+  static projectConflict(): ApiError {
+    return new ApiError('PROJECT_CONFLICT', 'That project is already registered.');
+  }
+
+  static projectAccessFailed(message: string, cause?: unknown): ApiError {
+    return new ApiError('PROJECT_ACCESS_FAILED', message, { cause });
   }
 
   static internal(cause?: unknown): ApiError {

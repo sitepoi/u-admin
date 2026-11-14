@@ -81,7 +81,8 @@ flowchart LR
   Admin -->|Bearer actorIdToken| SecretApi
   SecretApi --> Vault[(Secret vault<br/>ciphertext)]
   Admin -->|CMS system API| Cms[CMS]
-  Admin -->|Read-only aggregates| TenantProjects[(Tenant CMS projects)]
+  Admin -->|Registry + server-side tenant access| ManagedProjects[(Managed Firebase projects<br/>their own tenants)]
+  Admin -->|Read-only aggregates| ManagedProjects
   Browser[Browser] -->|Firebase Auth only| Firebase[Firebase Auth]
   Browser -.->|never| SecretApi
 ```
@@ -301,6 +302,46 @@ npm run set-platform-role -- --email name@uniconhub.com --role owner --yes
 to a service account JSON. It merges TOTP into the existing MFA configuration and
 never disables other providers. Run it with `--help` for the full usage.
 
+### 6.10 Managed projects and their tenants
+
+The Admin app never stores tenant records. It stores a project registry in
+`platform_projects` in the admin project, and reads or writes tenants inside each
+managed project on demand.
+
+1. Open `/projects` and choose **Add project**.
+2. Set the Firebase/GCP project id, a display name, and the tenant source:
+   - **Firestore collection**: set the collection id (`tenants` by default) and the
+     field names for id, name and status.
+   - **Identity Platform tenants**: tenants are read with the Admin SDK
+     `tenantManager()`. Tenant ids are assigned by Identity Platform.
+3. Open the project to see its tenants. The project selector switches between
+   projects; selecting a project never selects a tenant.
+4. Tenant create and edit actions are written directly to the managed project.
+
+Access mode:
+
+- **Read-only** is the default. Tenant list and detail work; create and edit are
+  blocked before any write is attempted.
+- **Read and write** enables tenant create and edit against the project.
+
+Credentials:
+
+- Set `PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON` to a service account with access to
+  every managed project.
+  - Firestore read-only: grant `roles/datastore.viewer` on each project.
+  - Firestore read/write: grant `roles/datastore.user` on each project.
+  - Identity Platform read-only: grant `roles/firebaseauth.viewer`.
+  - Identity Platform read/write: grant `roles/firebaseauth.admin`.
+- If the variable is absent, the app falls back to
+  `PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON`, which is normally read-only. Listing
+  works; create and edit return `PROJECT_ACCESS_FAILED` until write access is
+  granted.
+- The admin project keeps its own write access through `PLATFORM_FIREBASE_*`.
+  Never grant the cross-project account write access to the admin project unless
+  it is also the admin account.
+- The admin project's own tenant collection (`platform_tenants`) is legacy and is
+  no longer linked from the UI.
+
 ## 7. Environment reference
 
 A detailed HTML reference with per-variable sourcing, common mistakes and the exact
@@ -343,6 +384,7 @@ same/different rules across the Admin app, Secret API, CMS and Vercel is at
 | `CMS_SYSTEM_API_TIMEOUT_MS` | Default `10000` |
 | `PLATFORM_CMS_HOST_SUFFIX` | Default host suffix for generated CMS hosts |
 | `PLATFORM_PUBLICWEBSITE_HOST_SUFFIX` | Default host suffix for generated website hosts |
+| `PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON` | Cross-project account for reading and managing tenants in managed projects |
 | `PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON` | Dedicated read-only reporting account |
 | `PLATFORM_REPORTING_MAX_CONCURRENCY` | Default `3`, clamped to 1-10 |
 | `PLATFORM_REPORTING_TENANT_TIMEOUT_MS` | Default `10000` |

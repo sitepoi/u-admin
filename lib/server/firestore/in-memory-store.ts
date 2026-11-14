@@ -13,10 +13,13 @@ import {
   previousReportingPeriod,
   type AuditPage,
   type AuditQuery,
+  type CreateProjectResult,
   type CreateTenantResult,
   type FinishProvisioningInput,
   type NewTenantRecord,
+  type PlatformProjectRecord,
   type PlatformStore,
+  type ProjectPatch,
   type ProvisioningClaimResult,
   type TenantPatch,
   type TenantRecord,
@@ -58,9 +61,41 @@ export class InMemoryPlatformStore implements PlatformStore {
   readonly kind = 'memory' as const;
 
   private readonly tenants = new Map<string, TenantRecord>();
+  private readonly projects = new Map<string, PlatformProjectRecord>();
   private readonly auditEntries: AuditEntry[] = [];
   private readonly snapshots = new Map<string, ReportSnapshot>();
   private readonly settings = new Map<string, PlatformSettingRecord>();
+
+  async getProject(projectId: string): Promise<PlatformProjectRecord | null> {
+    const project = this.projects.get(projectId);
+    return project ? clone(project) : null;
+  }
+
+  async listProjects(): Promise<PlatformProjectRecord[]> {
+    return [...this.projects.values()]
+      .map((project) => clone(project))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
+
+  async createProject(record: PlatformProjectRecord): Promise<CreateProjectResult> {
+    const existing = this.projects.get(record.projectId);
+    if (existing) {
+      return { status: 'conflict', project: clone(existing) };
+    }
+    this.projects.set(record.projectId, clone(record));
+    return { status: 'created', project: clone(record) };
+  }
+
+  async updateProject(
+    projectId: string,
+    patch: ProjectPatch,
+  ): Promise<PlatformProjectRecord | null> {
+    const existing = this.projects.get(projectId);
+    if (!existing) return null;
+    const updated: PlatformProjectRecord = { ...existing, ...patch };
+    this.projects.set(projectId, updated);
+    return clone(updated);
+  }
 
   async getTenant(tenantId: string): Promise<TenantRecord | null> {
     const tenant = this.tenants.get(tenantId);

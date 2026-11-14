@@ -15,15 +15,18 @@ import type {
   AuditEntry,
   AuditResult,
   AuditTargetType,
+  PlatformProject,
   PlatformSettingRecord,
   ProvisioningState,
   ReportSnapshot,
   SnapshotStatus,
   TenantDetail,
 } from '@/lib/shared/platform-types';
+import { PROJECT_ACCESS_MODES, PROJECT_STATUSES, PROJECT_TENANT_SOURCES } from '@/lib/shared/platform-types';
 import { getPlatformFirestore } from '@/lib/server/firebase/admin';
 import {
   AUDIT_COLLECTION,
+  PROJECT_COLLECTION,
   SETTINGS_COLLECTION,
   SNAPSHOT_COLLECTION,
   TENANT_COLLECTION,
@@ -33,10 +36,13 @@ import {
   previousReportingPeriod,
   type AuditPage,
   type AuditQuery,
+  type CreateProjectResult,
   type CreateTenantResult,
   type FinishProvisioningInput,
   type NewTenantRecord,
+  type PlatformProjectRecord,
   type PlatformStore,
+  type ProjectPatch,
   type ProvisioningClaimResult,
   type TenantPatch,
   type TenantRecord,
@@ -176,6 +182,34 @@ function toSnapshot(snapshotId: string, data: DocumentData): ReportSnapshot {
  * platform metadata is stored here: never private keys, ciphertext, ID tokens
  * or service tokens.
  */
+export function toProjectRecord(
+  projectId: string,
+  data: DocumentData,
+): PlatformProjectRecord {
+  const tenantSource = isOneOf(data.tenantSource, PROJECT_TENANT_SOURCES)
+    ? data.tenantSource
+    : 'firestore';
+  const status = isOneOf(data.status, PROJECT_STATUSES) ? data.status : 'active';
+  const accessMode = isOneOf(data.accessMode, PROJECT_ACCESS_MODES)
+    ? data.accessMode
+    : 'read-only';
+
+  return {
+    projectId,
+    displayName: asString(data.displayName, projectId),
+    status,
+    tenantSource,
+    accessMode,
+    tenantCollection: asString(data.tenantCollection, 'tenants'),
+    tenantIdField: asString(data.tenantIdField, 'tenantId'),
+    tenantNameField: asString(data.tenantNameField, 'displayName'),
+    tenantStatusField: asString(data.tenantStatusField, 'status'),
+    createdAt: asString(data.createdAt, new Date(0).toISOString()),
+    createdBy: asString(data.createdBy),
+    updatedAt: asString(data.updatedAt, new Date(0).toISOString()),
+  };
+}
+
 export class FirestorePlatformStore implements PlatformStore {
   readonly kind = 'firestore' as const;
 
@@ -296,6 +330,56 @@ export class FirestorePlatformStore implements PlatformStore {
         updatedAt: input.finishedAt,
       };
       transaction.set(documentReference, serializeTenant(updated));
+      return updated;
+    });
+  }
+
+  async getProject(projectId: string): Promise<PlatformProjectRecord | null> {
+    const snapshot = await this.db.collection(PROJECT_COLLECTION).doc(projectId).get();
+    if (!snapshot.exists) return null;
+    return toProjectRecord(snapshot.id, snapshot.data() ?? {});
+  }
+
+  async listProjects(): Promise<PlatformProjectRecord[]> {
+    const snapshot = await this.db
+      .collection(PROJECT_COLLECTION)
+      .orderBy('createdAt', 'desc')
+      .limit(1000)
+      .get();
+    return snapshot.docs.map((document) => toProjectRecord(document.id, document.data()));
+  }
+
+  async createProject(record: PlatformProjectRecord): Promise<CreateProjectResult> {
+    const documentReference = this.db.collection(PROJECT_COLLECTION).doc(record.projectId);
+
+    return this.db.runTransaction(async (transaction) => {
+      const existingSnapshot = await transaction.get(documentReference);
+      if (existingSnapshot.exists) {
+        return {
+          status: 'conflict' as const,
+          project: toProjectRecord(record.projectId, existingSnapshot.data() ?? {}),
+        };
+      }
+      transaction.set(documentReference, { ...record });
+      return { status: 'created' as const, project: record };
+    });
+  }
+
+  async updateProject(
+    projectId: string,
+    patch: ProjectPatch,
+  ): Promise<PlatformProjectRecord | null> {
+    const documentReference = this.db.collection(PROJECT_COLLECTION).doc(projectId);
+
+    return this.db.runTransaction(async (transaction) => {
+      const existingSnapshot = await transaction.get(documentReference);
+      if (!existingSnapshot.exists) return null;
+
+      const updated: PlatformProjectRecord = {
+        ...toProjectRecord(projectId, existingSnapshot.data() ?? {}),
+        ...patch,
+      };
+      transaction.set(documentReference, { ...updated });
       return updated;
     });
   }

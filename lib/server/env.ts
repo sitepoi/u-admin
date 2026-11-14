@@ -45,6 +45,11 @@ export interface ReportingConfig {
   tenantTimeoutMs: number;
 }
 
+/** Cross-project service account used to read and manage managed projects. */
+export interface ProjectAccessConfig {
+  serviceAccountJson: string;
+}
+
 function readOptionalEnv(name: string): string {
   return (process.env[name] ?? '').trim();
 }
@@ -220,9 +225,14 @@ let cachedReportingConfig: ReportingConfig | null = null;
 
 export function getReportingConfig(): ReportingConfig {
   if (cachedReportingConfig) return cachedReportingConfig;
-  const rawServiceAccountJson = readOptionalEnv('PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON');
+  const rawServiceAccountJson =
+    readOptionalEnv('PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON') ||
+    readOptionalEnv('PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON');
   if (!rawServiceAccountJson) {
-    throw new ConfigurationError(['PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON'], 'reporting');
+    throw new ConfigurationError(
+      ['PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON', 'PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON'],
+      'reporting',
+    );
   }
 
   let parsedServiceAccount: unknown;
@@ -230,7 +240,10 @@ export function getReportingConfig(): ReportingConfig {
     parsedServiceAccount = JSON.parse(rawServiceAccountJson);
   } catch {
     // Never echo the JSON: it contains a private key.
-    throw new ConfigurationError(['PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON'], 'reporting');
+    throw new ConfigurationError(
+      ['PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON', 'PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON'],
+      'reporting',
+    );
   }
   if (
     typeof parsedServiceAccount !== 'object' ||
@@ -238,7 +251,10 @@ export function getReportingConfig(): ReportingConfig {
     typeof (parsedServiceAccount as Record<string, unknown>).client_email !== 'string' ||
     typeof (parsedServiceAccount as Record<string, unknown>).private_key !== 'string'
   ) {
-    throw new ConfigurationError(['PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON'], 'reporting');
+    throw new ConfigurationError(
+      ['PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON', 'PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON'],
+      'reporting',
+    );
   }
 
   cachedReportingConfig = {
@@ -260,10 +276,48 @@ export function getReportingConfig(): ReportingConfig {
   return cachedReportingConfig;
 }
 
+let cachedProjectAccessConfig: ProjectAccessConfig | null = null;
+
+/**
+ * Credentials for reaching managed projects. A dedicated service account is
+ * preferred; the reporting account is accepted as a read-only fallback so a
+ * fresh deployment can list tenants before write access is granted.
+ */
+export function getProjectAccessConfig(): ProjectAccessConfig {
+  if (cachedProjectAccessConfig) return cachedProjectAccessConfig;
+
+  const rawServiceAccountJson =
+    readOptionalEnv('PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON') ||
+    readOptionalEnv('PLATFORM_REPORTING_SERVICE_ACCOUNT_JSON');
+  if (!rawServiceAccountJson) {
+    throw new ConfigurationError(['PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON'], 'projects');
+  }
+
+  let parsedServiceAccount: unknown;
+  try {
+    parsedServiceAccount = JSON.parse(rawServiceAccountJson);
+  } catch {
+    // Never echo the JSON: it contains a private key.
+    throw new ConfigurationError(['PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON'], 'projects');
+  }
+  if (
+    typeof parsedServiceAccount !== 'object' ||
+    parsedServiceAccount === null ||
+    typeof (parsedServiceAccount as Record<string, unknown>).client_email !== 'string' ||
+    typeof (parsedServiceAccount as Record<string, unknown>).private_key !== 'string'
+  ) {
+    throw new ConfigurationError(['PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON'], 'projects');
+  }
+
+  cachedProjectAccessConfig = { serviceAccountJson: rawServiceAccountJson };
+  return cachedProjectAccessConfig;
+}
+
 /** Test-only: clears memoised configuration between test cases. */
 export function resetServerEnvCacheForTesting(): void {
   cachedPlatformConfig = null;
   cachedSecretApiConfig = null;
   cachedCmsConfig = null;
   cachedReportingConfig = null;
+  cachedProjectAccessConfig = null;
 }

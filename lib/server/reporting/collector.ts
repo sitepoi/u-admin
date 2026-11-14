@@ -371,7 +371,45 @@ export async function refreshReporting(options: {
 }): Promise<ReportingRefreshResult> {
   const config: ReportingConfig = getReportingConfig();
   const store = getPlatformStore();
-  const tenants = await store.listTenants();
+  const projects = await store.listProjects();
+
+  // In the project-based model the reporting unit is a managed project: its
+  // aggregate collections are read with the project id. The legacy tenant
+  // registry is used only when no project has been registered yet.
+  const tenants: TenantRecord[] =
+    projects.length > 0
+      ? projects.map(
+          (project): TenantRecord => ({
+            tenantId: project.projectId,
+            displayName: project.displayName,
+            status: project.status === 'active' ? 'active' : 'suspended',
+            cmsProjectId: project.projectId,
+            cmsHost: '',
+            publicwebsiteHost: '',
+            publicwebsiteVercelProjectId: '',
+            customDomains: [],
+            primaryDomain: '',
+            deliveryMode: 'manual',
+            firstPartyAppId: 'publicwebsite',
+            firstPartyStatus: 'not-enrolled',
+            provisioning: {
+              status: 'idle',
+              attemptId: null,
+              startedAt: null,
+              finishedAt: null,
+              lastError: null,
+            },
+            reporting: {
+              lastRefreshAt: null,
+              lastError: null,
+            },
+            createdAt: project.createdAt,
+            createdBy: project.createdBy,
+            updatedAt: project.updatedAt,
+          }),
+        )
+      : await store.listTenants();
+
   const period = getReportingPeriod();
   const collectedAt = new Date().toISOString();
 
@@ -504,18 +542,40 @@ export interface ReportingSummary {
   lastRefreshAt: string | null;
   lastError: string | null;
   collectionFailures: number;
+  /** Set when cached snapshots could not be read (for example a missing index). */
+  snapshotReadError: string | null;
+}
+
+function describeSnapshotReadError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/\s+/g, ' ').trim().slice(0, 500);
 }
 
 /**
  * Dashboard reads use cached snapshots only: page loads never fan out across
  * tenant projects.
+ *
+ * Snapshot reads are optional: a missing Firestore index must not take down
+ * the whole dashboard. The failure is returned so the page can show it.
  */
 export async function getReportingSummary(): Promise<ReportingSummary> {
   const store = getPlatformStore();
+  let snapshotReadError: string | null = null;
+
+  function captureSnapshotReadError(error: unknown): void {
+    snapshotReadError ??= describeSnapshotReadError(error);
+  }
+
   const [tenants, platformSnapshot, tenantSnapshots] = await Promise.all([
     store.listTenants(),
-    store.getLatestSnapshot(null),
-    store.listSnapshots(null, 6),
+    store.getLatestSnapshot(null).catch((error) => {
+      captureSnapshotReadError(error);
+      return null;
+    }),
+    store.listSnapshots(null, 6).catch((error) => {
+      captureSnapshotReadError(error);
+      return [];
+    }),
   ]);
 
   const tenantsByStatus: Record<TenantStatus, number> = {
@@ -545,6 +605,7 @@ export async function getReportingSummary(): Promise<ReportingSummary> {
     lastRefreshAt: platformSnapshot?.collectedAt ?? null,
     lastError: platformSnapshot?.errors[0] ?? null,
     collectionFailures: isPlatformMetrics ? platformMetrics.collectionFailures : 0,
+    snapshotReadError,
   };
 }
 

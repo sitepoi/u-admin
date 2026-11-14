@@ -9,7 +9,7 @@ import { formatBytes, formatDateTime, formatNumber, formatRelative } from '@/lib
 import { roleCan } from '@/lib/server/auth/roles';
 import { requireServerSession } from '@/lib/server/auth/server-session';
 import { getPlatformStore } from '@/lib/server/firestore/store-provider';
-import { listTenants } from '@/lib/server/tenants/tenant-service';
+import { listProjects } from '@/lib/server/projects/project-service';
 import { getReportingSummary } from '@/lib/server/reporting/collector';
 import { getPlatformSettings } from '@/lib/server/settings/settings-service';
 
@@ -18,9 +18,9 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardPage() {
   const session = await requireServerSession();
 
-  const [reportingSummary, tenants, platformSettings] = await Promise.all([
+  const [reportingSummary, projects, platformSettings] = await Promise.all([
     getReportingSummary(),
-    listTenants(),
+    listProjects(),
     getPlatformSettings().catch(() => null),
   ]);
 
@@ -37,9 +37,10 @@ export default async function DashboardPage() {
   const platformMetrics =
     snapshotMetrics && 'totals' in snapshotMetrics ? snapshotMetrics : null;
 
-  const tenantsWithErrors = tenants.filter(
-    (tenant) => Boolean(tenant.provisioning.lastError || tenant.reporting.lastError),
-  );
+  const activeProjectCount = projects.filter((project) => project.status === 'active').length;
+  const disabledProjectCount = projects.filter(
+    (project) => project.status === 'disabled',
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -61,6 +62,13 @@ export default async function DashboardPage() {
         </div>
       </header>
 
+      {reportingSummary.snapshotReadError ? (
+        <Alert tone="warning" title="Reporting snapshots unavailable">
+          {reportingSummary.snapshotReadError} Create the Firestore indexes from{' '}
+          <code className="font-mono text-xs">firestore.indexes.json</code>, then reload.
+        </Alert>
+      ) : null}
+
       {platformSettings?.maintenanceNotice ? (
         <Alert tone="warning" title="Platform notice">
           {platformSettings.maintenanceNotice}
@@ -69,9 +77,9 @@ export default async function DashboardPage() {
 
       <section aria-label="Key platform metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          label="Tenants"
-          value={formatNumber(reportingSummary.tenantCount)}
-          hint={`${reportingSummary.tenantsByStatus.active} active, ${reportingSummary.tenantsByStatus.draft} draft`}
+          label="Projects"
+          value={formatNumber(projects.length)}
+          hint={`${activeProjectCount} active, ${disabledProjectCount} disabled`}
         />
         <StatTile
           label="Secret delivery failures"
@@ -191,33 +199,38 @@ export default async function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Tenants needing attention" description="Provisioning or reporting errors." />
+          <CardHeader
+            title="Managed projects"
+            description="Each project holds its own tenants. No tenant is stored in the admin project."
+          />
           <CardBody>
-            {tenantsWithErrors.length === 0 ? (
-              <p className="text-sm text-slate-500">No tenant errors recorded.</p>
+            {projects.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No projects registered. Add one to start managing its tenants.
+              </p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {tenantsWithErrors.slice(0, 6).map((tenant) => (
-                  <li key={tenant.tenantId} className="py-3 first:pt-0 last:pb-0">
+                {projects.slice(0, 6).map((project) => (
+                  <li key={project.projectId} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex items-center justify-between gap-2">
                       <Link
-                        href={`/tenants/${tenant.tenantId}`}
+                        href={`/projects/${project.projectId}/tenants`}
                         className="text-sm font-medium text-indigo-700 hover:underline"
                       >
-                        {tenant.displayName}
+                        {project.displayName}
                       </Link>
-                      <StatusBadge status={tenant.status} />
+                      <StatusBadge status={project.status} />
                     </div>
-                    <p className="mt-1 text-xs break-words text-rose-600">
-                      {tenant.provisioning.lastError ?? tenant.reporting.lastError}
+                    <p className="mt-1 font-mono text-xs text-slate-500">
+                      {project.projectId}
                     </p>
                   </li>
                 ))}
               </ul>
             )}
             <div className="mt-4">
-              <Link href="/tenants" className={buttonClassName('secondary', 'sm')}>
-                View all tenants
+              <Link href="/projects" className={buttonClassName('secondary', 'sm')}>
+                View all projects
               </Link>
             </div>
           </CardBody>

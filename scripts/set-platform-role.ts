@@ -5,6 +5,7 @@
  * Usage:
  *   npm run set-platform-role -- --email owner@uniconhub.com --role owner
  *   npm run set-platform-role -- --email ops@uniconhub.com --role operator --yes
+ *   GOOGLE_APPLICATION_CREDENTIALS=service-account.json npm run set-platform-role -- --email owner@uniconhub.com --role owner --yes
  *
  * The user must already exist (create it in the Firebase console) and must have
  * enrolled a second factor. The claim only grants the platform role: the app
@@ -16,7 +17,7 @@ import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 /**
@@ -69,12 +70,8 @@ function isPlatformRole(value: string): value is PlatformRole {
   return (PLATFORM_ROLES as readonly string[]).includes(value);
 }
 
-function requireEnv(name: string): string {
-  const value = (process.env[name] ?? '').trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
+function readOptionalEnv(name: string): string {
+  return (process.env[name] ?? '').trim();
 }
 
 async function resolveOptions(argv: readonly string[]): Promise<ScriptOptions> {
@@ -123,21 +120,32 @@ async function confirm(options: ScriptOptions): Promise<boolean> {
 async function main(): Promise<void> {
   const options = await resolveOptions(process.argv.slice(2));
 
-  const projectId = requireEnv('PLATFORM_FIREBASE_PROJECT_ID');
-  const clientEmail = requireEnv('PLATFORM_FIREBASE_CLIENT_EMAIL');
-  const privateKey = requireEnv('PLATFORM_FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n');
+  const projectId = readOptionalEnv('PLATFORM_FIREBASE_PROJECT_ID');
+  const clientEmail = readOptionalEnv('PLATFORM_FIREBASE_CLIENT_EMAIL');
+  const privateKey = readOptionalEnv('PLATFORM_FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n');
+  const hasServiceAccountEnv = Boolean(projectId && clientEmail && privateKey);
+
+  if (!hasServiceAccountEnv && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    throw new Error(
+      'Set PLATFORM_FIREBASE_PROJECT_ID, PLATFORM_FIREBASE_CLIENT_EMAIL and PLATFORM_FIREBASE_PRIVATE_KEY, or set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON.',
+    );
+  }
 
   if (!(await confirm(options))) {
     process.stdout.write('Aborted. No claim was changed.\n');
     return;
   }
 
+  const credential = hasServiceAccountEnv
+    ? cert({ projectId, clientEmail, privateKey })
+    : applicationDefault();
+
   const app =
     getApps().find((candidateApp) => candidateApp.name === 'platform-admin-role-script') ??
     initializeApp(
       {
-        credential: cert({ projectId, clientEmail, privateKey }),
-        projectId,
+        credential,
+        projectId: projectId || undefined,
       },
       'platform-admin-role-script',
     );

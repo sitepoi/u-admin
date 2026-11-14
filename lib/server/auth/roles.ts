@@ -10,6 +10,8 @@ import { ApiError } from '@/lib/server/errors';
 export const PERMISSIONS = {
   /** Dashboard and tenant visibility. */
   'platform:read': ['owner', 'admin', 'operator', 'auditor'],
+  /** Add, edit or disable managed projects. */
+  'project:manage': ['owner', 'admin'],
   /** Create / edit tenant metadata. */
   'tenant:write': ['owner', 'admin', 'operator'],
   /** Run the provisioning workflow. */
@@ -63,6 +65,7 @@ export const ROLE_MATRIX_ROWS: ReadonlyArray<{
   permission: Permission;
 }> = [
   { label: 'View dashboard and tenants', permission: 'platform:read' },
+  { label: 'Manage managed projects', permission: 'project:manage' },
   { label: 'Create/edit tenant metadata', permission: 'tenant:write' },
   { label: 'Provision tenant', permission: 'tenant:provision' },
   { label: 'View secret metadata', permission: 'secret:metadata:read' },

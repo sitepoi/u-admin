@@ -3,12 +3,14 @@ import 'server-only';
 import type { TenantStatus } from '@/lib/shared/constants';
 import type {
   AuditEntry,
+  PlatformProject,
   PlatformSettingRecord,
   ReportSnapshot,
   TenantDetail,
 } from '@/lib/shared/platform-types';
 
 export const TENANT_COLLECTION = 'platform_tenants';
+export const PROJECT_COLLECTION = 'platform_projects';
 export const AUDIT_COLLECTION = 'platform_audit_log';
 export const SNAPSHOT_COLLECTION = 'platform_report_snapshots';
 export const SETTINGS_COLLECTION = 'platform_settings';
@@ -17,6 +19,25 @@ export const SETTINGS_COLLECTION = 'platform_settings';
 export const PROVISIONING_LOCK_STALE_MS = 15 * 60 * 1000;
 
 export interface TenantRecord extends TenantDetail {}
+
+export interface PlatformProjectRecord extends PlatformProject {}
+
+export interface ProjectPatch {
+  displayName?: string;
+  status?: PlatformProject['status'];
+  tenantSource?: PlatformProject['tenantSource'];
+  accessMode?: PlatformProject['accessMode'];
+  tenantCollection?: string;
+  tenantIdField?: string;
+  tenantNameField?: string;
+  tenantStatusField?: string;
+  updatedAt: string;
+}
+
+export interface CreateProjectResult {
+  status: 'created' | 'conflict';
+  project: PlatformProjectRecord | null;
+}
 
 export interface NewTenantRecord extends TenantDetail {}
 
@@ -81,6 +102,14 @@ export interface AuditPage {
  */
 export interface PlatformStore {
   readonly kind: 'firestore' | 'memory';
+
+  getProject(projectId: string): Promise<PlatformProjectRecord | null>;
+  listProjects(): Promise<PlatformProjectRecord[]>;
+  createProject(record: PlatformProjectRecord): Promise<CreateProjectResult>;
+  updateProject(
+    projectId: string,
+    patch: ProjectPatch,
+  ): Promise<PlatformProjectRecord | null>;
 
   getTenant(tenantId: string): Promise<TenantRecord | null>;
   listTenants(): Promise<TenantRecord[]>;

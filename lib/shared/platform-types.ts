@@ -46,6 +46,46 @@ export interface TenantDetail extends TenantSummary {
   createdBy: string;
 }
 
+/** Projects managed by this control plane. Tenants live inside them. */
+export const PROJECT_STATUSES = ['active', 'disabled'] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+/** How tenants are stored in a managed project. */
+export const PROJECT_TENANT_SOURCES = ['firestore', 'identity-platform'] as const;
+export type ProjectTenantSource = (typeof PROJECT_TENANT_SOURCES)[number];
+
+/** Whether the cross-project account may write to the managed project. */
+export const PROJECT_ACCESS_MODES = ['read-only', 'read-write'] as const;
+export type ProjectAccessMode = (typeof PROJECT_ACCESS_MODES)[number];
+
+export interface PlatformProject {
+  /** Firebase/GCP project id. Never a tenant id. */
+  projectId: string;
+  displayName: string;
+  status: ProjectStatus;
+  tenantSource: ProjectTenantSource;
+  /** Read-only is the safe default; writes are blocked before any IAM call. */
+  accessMode: ProjectAccessMode;
+  /** Firestore collection that holds tenants. Unused for Identity Platform. */
+  tenantCollection: string;
+  tenantIdField: string;
+  tenantNameField: string;
+  tenantStatusField: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+}
+
+/** A tenant as it exists inside a managed project. */
+export interface ProjectTenantSummary {
+  tenantId: string;
+  /** Firestore document id or Identity Platform tenant id used for lookups. */
+  recordId?: string;
+  displayName: string;
+  status: string;
+  source: ProjectTenantSource;
+}
+
 export const AUDIT_ACTIONS = [
   'tenant.created',
   'tenant.updated',
@@ -63,6 +103,10 @@ export const AUDIT_ACTIONS = [
   'auth.logout',
   'auth.denied',
   'auth.mfa_missing',
+  'project.created',
+  'project.updated',
+  'project.tenant_created',
+  'project.tenant_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -70,7 +114,7 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export const AUDIT_RESULTS = ['success', 'denied', 'error'] as const;
 export type AuditResult = (typeof AUDIT_RESULTS)[number];
 
-export const AUDIT_TARGET_TYPES = ['tenant', 'secret', 'platform', 'session'] as const;
+export const AUDIT_TARGET_TYPES = ['tenant', 'secret', 'platform', 'session', 'project'] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
 export interface AuditEntry {

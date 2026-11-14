@@ -1011,6 +1011,11 @@
                 <td><span class="badge sec">Secret</span></td><td><span class="badge opt">Conditional</span></td>
                 <td>Vercel's cron header secret. Must equal <code>PLATFORM_REPORTING_CRON_SECRET</code>.</td>
               </tr>
+              <tr data-searchable>
+                <td>38</td><td><code>PLATFORM_PROJECTS_SERVICE_ACCOUNT_JSON</code></td><td>Projects</td>
+                <td><span class="badge sec">Secret</span></td><td><span class="badge opt">Conditional</span></td>
+                <td>Cross-project account for reading and managing tenants in managed projects. Falls back to the reporting account for read-only access.</td>
+              </tr>
             </tbody>
           </table>
         </div>

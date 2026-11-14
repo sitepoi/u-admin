@@ -30,7 +30,7 @@ test.describe('Platform Admin end to end', () => {
   test('creates a tenant and provisions it against the mocked CMS', async ({ page }) => {
     await signInAs(page, 'owner');
 
-    await page.getByRole('link', { name: 'Tenants' }).first().click();
+    await page.goto('/tenants');
     await page.getByRole('button', { name: 'New tenant' }).click();
 
     const tenantId = uniqueTenantId('acme-travel');
