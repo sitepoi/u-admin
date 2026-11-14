@@ -12,16 +12,18 @@ import { getPlatformStore } from '@/lib/server/firestore/store-provider';
 import { listRelayProjects } from '@/lib/server/relay/relay-client';
 import { getReportingSummary } from '@/lib/server/reporting/collector';
 import { getPlatformSettings } from '@/lib/server/settings/settings-service';
+import { getTenantStatsRollup } from '@/lib/server/statistics/tenant-stats';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const session = await requireServerSession();
 
-  const [reportingSummary, projects, platformSettings] = await Promise.all([
+  const [reportingSummary, projects, platformSettings, statsRollup] = await Promise.all([
     getReportingSummary(),
     listRelayProjects().catch(() => []),
     getPlatformSettings().catch(() => null),
+    getTenantStatsRollup().catch(() => null),
   ]);
 
   const canRefreshReporting = roleCan(session.role, 'reporting:refresh');
@@ -98,6 +100,43 @@ export default async function DashboardPage() {
           value={secretHealth ? formatNumber(secretHealth.pendingDelivery) : '-'}
           hint={secretHealth ? `${secretHealth.active} active, ${secretHealth.total} total` : 'Needs a reporting snapshot'}
         />
+      </section>
+
+      <section aria-label="Cached tenant statistics" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Tenant statistics</h2>
+            <p className="text-xs text-slate-500">
+              {statsRollup && statsRollup.tenantCount > 0
+                ? `${statsRollup.tenantCount} tenant(s) cached. Latest computation ${formatRelative(
+                    statsRollup.latestComputedAt ?? '',
+                  )}.`
+                : 'No cached statistics yet. Open a tenant and refresh its statistics.'}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatTile
+            label="Applications"
+            value={statsRollup ? formatNumber(statsRollup.applicationCount) : '-'}
+            hint="Installed across cached tenants"
+          />
+          <StatTile
+            label="Objects"
+            value={statsRollup ? formatNumber(statsRollup.totalObjectCount) : '-'}
+            hint="Public and private object collections"
+          />
+          <StatTile
+            label="Website Builder pages"
+            value={statsRollup ? formatNumber(statsRollup.websiteBuilderPageCount) : '-'}
+            hint="Website Builder application objects"
+          />
+          <StatTile
+            label="Content Manager items"
+            value={statsRollup ? formatNumber(statsRollup.contentManagerItemCount) : '-'}
+            hint="Legacy sp_contents, excluding settings-items"
+          />
+        </div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-3">

@@ -341,6 +341,47 @@ Legacy:
   create/edit forms are not part of the relay model. They are kept in the codebase
   only for the old tests and can be removed in a cleanup.
 
+### 6.11 Tenant statistics
+
+Statistics are cached in the admin project, collection `platform_tenant_stats`, one
+document per tenant. Nothing is written to tenant projects, and page loads never
+fan out across projects.
+
+Definitions:
+
+- **Applications**: elements of
+  `settings{ext}/cms-settings-{tenantId}.objectTypes`.
+- **Objects per application**: count in `om_objects` or `om_private_objects` by
+  `cmsObjectType` and `tenantId`. The legacy `products` app is counted from
+  `pm_products` by `tenantId`.
+- **Total objects**: sum of the `om_objects`, `om_private_objects` and
+  `pm_products` counts for the tenant. Objects in a shared folder belong to the
+  owner tenant.
+- **Website Builder pages**: objects whose `cmsObjectType` is the application
+  whose `folderConfigSection.storageKey` is `websiteConfig`, falling back to
+  `website-builder-uniconbaseapps`.
+- **Content Manager items**: documents in `sp_contents{ext}` for the tenant,
+  excluding the `settings-items` document. This is the legacy module, not
+  Website Builder.
+
+`{ext}` is `-<tableExtension>` when the relay sets one, and empty otherwise. The
+object collections never take the suffix.
+
+Refresh:
+
+- Manual **Refresh statistics** on the tenant page. A tenant is recomputed at most
+  once every 15 minutes.
+- Reads use Firestore count aggregations, which are billed per 1,000 index entries,
+  not per document downloaded.
+- A daily batch cron can be added later once the tenant count is known.
+
+Required composite indexes in every tenant-hosting project:
+
+- `om_objects`: `cmsObjectType` ASC, `tenantId` ASC
+- `om_private_objects`: `cmsObjectType` ASC, `tenantId` ASC
+
+The tenant totals and `sp_contents` counts use single-field automatic indexes.
+
 ## 7. Environment reference
 
 A detailed HTML reference with per-variable sourcing, common mistakes and the exact

@@ -95,6 +95,16 @@ export const updateProjectTenantRequestSchema = z
 
 export type UpdateProjectTenantRequest = z.infer<typeof updateProjectTenantRequestSchema>;
 
+export const refreshTenantStatsRequestSchema = z
+  .object({
+    projectId: z.string().trim().min(1).max(120),
+    tenantId: z.string().trim().min(1).max(128),
+    applicationId: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
+export type RefreshTenantStatsRequest = z.infer<typeof refreshTenantStatsRequestSchema>;
+
 export const updateTenantRequestSchema = z
   .object({
     displayName: tenantMetadataFields.displayName.optional(),

@@ -115,6 +115,51 @@ export interface RelayTenantDetail extends RelayTenantSummary {
   databaseProjectName: string | null;
 }
 
+export interface TenantAppStats {
+  appId: string;
+  name: string;
+  version: string;
+  scope: 'local' | 'remote';
+  disabled: boolean;
+  saveState: string;
+  objectTable: 'om_objects' | 'om_private_objects' | 'pm_products';
+  objectCount: number | null;
+}
+
+/** Cached per-tenant statistics. Never written to tenant projects. */
+export interface TenantStats {
+  projectId: string;
+  tenantId: string;
+  applicationId: string;
+  computedAt: string;
+  durationMs: number;
+  status: 'ok' | 'partial' | 'failed';
+  applicationCount: number;
+  enabledApplicationCount: number;
+  remoteApplicationCount: number;
+  totalObjectCount: number | null;
+  objectCounts: {
+    omObjects: number | null;
+    omPrivateObjects: number | null;
+    pmProducts: number | null;
+  };
+  applications: TenantAppStats[];
+  websiteBuilderAppId: string | null;
+  websiteBuilderPageCount: number | null;
+  /** Legacy Content Manager: sp_contents, excluding settings-items. */
+  contentManagerItemCount: number | null;
+  errors: string[];
+}
+
+export interface TenantStatsRollup {
+  tenantCount: number;
+  applicationCount: number;
+  totalObjectCount: number;
+  websiteBuilderPageCount: number;
+  contentManagerItemCount: number;
+  latestComputedAt: string | null;
+}
+
 export const AUDIT_ACTIONS = [
   'tenant.created',
   'tenant.updated',
@@ -136,6 +181,7 @@ export const AUDIT_ACTIONS = [
   'project.updated',
   'project.tenant_created',
   'project.tenant_updated',
+  'statistics.refreshed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
