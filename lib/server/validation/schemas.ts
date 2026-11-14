@@ -8,6 +8,7 @@ import {
   PROJECT_ACCESS_MODES,
   PROJECT_STATUSES,
   PROJECT_TENANT_SOURCES,
+  TENANT_LIFECYCLE_STATUSES,
 } from '@/lib/shared/platform-types';
 import { ApiError } from '@/lib/server/errors';
 
@@ -104,6 +105,23 @@ export const refreshTenantStatsRequestSchema = z
   .strict();
 
 export type RefreshTenantStatsRequest = z.infer<typeof refreshTenantStatsRequestSchema>;
+
+export const updateTenantControlRequestSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(120).optional(),
+    status: z.enum(TENANT_LIFECYCLE_STATUSES).optional(),
+    region: z.string().trim().max(80).optional(),
+    plan: z.string().trim().max(80).optional(),
+    ownerEmail: z.string().trim().max(320).optional(),
+    adminEmail: z.string().trim().max(320).optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict()
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: 'At least one field is required.',
+  });
+
+export type UpdateTenantControlRequest = z.infer<typeof updateTenantControlRequestSchema>;
 
 export const updateTenantRequestSchema = z
   .object({

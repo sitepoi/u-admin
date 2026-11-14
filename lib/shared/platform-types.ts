@@ -124,6 +124,33 @@ export interface TenantAppStats {
   saveState: string;
   objectTable: 'om_objects' | 'om_private_objects' | 'pm_products';
   objectCount: number | null;
+  folderCount: number | null;
+}
+
+export interface TenantLegacySignals {
+  contentItemCount: number | null;
+  contentTypeCount: number | null;
+  productCount: number | null;
+  productTypeCount: number | null;
+  productCategoryCount: number | null;
+  legacyApiCallCount: number | null;
+  oldVersionHistoryCount: number | null;
+  snapshotCount: number | null;
+  formTypeCount: number | null;
+  formSubmissionCount: number | null;
+  aggregatedListCount: number | null;
+  publicToPrivateLeftoverCount: number | null;
+}
+
+export interface TenantHealthScores {
+  /** 0-100: installed apps, objects and users. */
+  adoption: number;
+  /** 0-100: recency of the newest object/content/user activity. */
+  engagement: number;
+  /** 0-100: weighted legacy signals. Higher means more migration work. */
+  legacyRisk: number;
+  /** 0-100: registry pressure and collection errors. */
+  operationalRisk: number;
 }
 
 /** Cached per-tenant statistics. Never written to tenant projects. */
@@ -136,19 +163,72 @@ export interface TenantStats {
   status: 'ok' | 'partial' | 'failed';
   applicationCount: number;
   enabledApplicationCount: number;
+  disabledApplicationCount: number;
   remoteApplicationCount: number;
+  localApplicationCount: number;
+  duplicateAppIds: string[];
+  /** Approximate size of the objectTypes JSON, against the 1 MiB document limit. */
+  appRegistryBytes: number | null;
   totalObjectCount: number | null;
   objectCounts: {
     omObjects: number | null;
     omPrivateObjects: number | null;
     pmProducts: number | null;
   };
+  objectStatusCounts: {
+    publicEnabled: number | null;
+    publicDisabled: number | null;
+    privateEnabled: number | null;
+    privateDisabled: number | null;
+  };
+  newestObjectCreatedAt: string | null;
+  newestObjectUpdatedAt: string | null;
+  userCount: number | null;
+  newestUserCreatedAt: string | null;
   applications: TenantAppStats[];
   websiteBuilderAppId: string | null;
   websiteBuilderPageCount: number | null;
   /** Legacy Content Manager: sp_contents, excluding settings-items. */
   contentManagerItemCount: number | null;
+  newestContentUpdatedAt: string | null;
+  legacy: TenantLegacySignals;
+  migrationTag: 'legacy-only' | 'mixed' | 'website-builder-only' | 'none' | 'unknown';
+  scores: TenantHealthScores;
   errors: string[];
+}
+
+export const TENANT_LIFECYCLE_STATUSES = ['active', 'trial', 'suspended', 'archived'] as const;
+export type TenantLifecycleStatus = (typeof TENANT_LIFECYCLE_STATUSES)[number];
+
+/** Control-plane record, stored in the admin project and editable by operators. */
+export interface TenantControlRecord {
+  projectId: string;
+  tenantId: string;
+  applicationId: string;
+  displayName: string;
+  primaryHost: string;
+  hostNames: string[];
+  tableExtension: string;
+  region: string;
+  status: TenantLifecycleStatus;
+  plan: string;
+  ownerEmail: string;
+  adminEmail: string;
+  notes: string;
+  /** First time the control plane saw this tenant. Not the real creation date. */
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+  lastActivityAt: string | null;
+  counts: {
+    applicationCount: number;
+    totalObjectCount: number | null;
+    userCount: number | null;
+    websiteBuilderPageCount: number | null;
+    contentManagerItemCount: number | null;
+  } | null;
+  scores: TenantHealthScores | null;
 }
 
 export interface TenantStatsRollup {
@@ -182,6 +262,7 @@ export const AUDIT_ACTIONS = [
   'project.tenant_created',
   'project.tenant_updated',
   'statistics.refreshed',
+  'tenant.control_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

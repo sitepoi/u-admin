@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { Buffer } from 'node:buffer';
+
 import { getFirestore, type Firestore, type Query } from 'firebase-admin/firestore';
 
 import { getPlatformFirestore } from '@/lib/server/firebase/admin';
@@ -143,6 +145,69 @@ function objectTableForApp(app: ParsedApp): TenantAppStats['objectTable'] {
   return app.publicAccess === 'no' ? 'om_private_objects' : 'om_objects';
 }
 
+function maxIsoTimestamp(values: Array<string | null>): string | null {
+  const present = values.filter((value): value is string => Boolean(value));
+  if (present.length === 0) return null;
+  present.sort();
+  return present[present.length - 1] ?? null;
+}
+
+function timestampToString(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function newestTimestamp(
+  database: Firestore,
+  collectionName: string,
+  tenantId: string,
+  field: string,
+): Promise<{ value: string | null; error: string | null }> {
+  try {
+    const snapshot = await database
+      .collection(collectionName)
+      .where('tenantId', '==', tenantId)
+      .orderBy(field, 'desc')
+      .limit(1)
+      .get();
+    if (snapshot.empty) return { value: null, error: null };
+    return { value: timestampToString(snapshot.docs[0].get(field)), error: null };
+  } catch (error) {
+    return { value: null, error: describeError(error) };
+  }
+}
+
+function estimateRegistryBytes(objectTypes: unknown): number | null {
+  try {
+    return Buffer.byteLength(JSON.stringify(objectTypes ?? []), 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+function engagementScore(newestActivityAt: string | null): number {
+  if (!newestActivityAt) return 0;
+  const ageMs = Date.now() - Date.parse(newestActivityAt);
+  if (!Number.isFinite(ageMs) || ageMs < 0) return 100;
+  const ageDays = Math.floor(ageMs / 86_400_000);
+  if (ageDays <= 7) return 100;
+  if (ageDays <= 30) return 70;
+  if (ageDays <= 90) return 40;
+  if (ageDays <= 180) return 20;
+  return 5;
+}
+
 /**
  * Collects one tenant's statistics using Firestore count aggregations.
  * Reads only; the only write happens later, in the admin project cache.
@@ -165,18 +230,50 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
       status: 'failed',
       applicationCount: 0,
       enabledApplicationCount: 0,
+      disabledApplicationCount: 0,
       remoteApplicationCount: 0,
+      localApplicationCount: 0,
+      duplicateAppIds: [],
+      appRegistryBytes: null,
       totalObjectCount: null,
       objectCounts: { omObjects: null, omPrivateObjects: null, pmProducts: null },
+      objectStatusCounts: {
+        publicEnabled: null,
+        publicDisabled: null,
+        privateEnabled: null,
+        privateDisabled: null,
+      },
+      newestObjectCreatedAt: null,
+      newestObjectUpdatedAt: null,
+      userCount: null,
+      newestUserCreatedAt: null,
       applications: [],
       websiteBuilderAppId: null,
       websiteBuilderPageCount: null,
       contentManagerItemCount: null,
+      newestContentUpdatedAt: null,
+      legacy: {
+        contentItemCount: null,
+        contentTypeCount: null,
+        productCount: null,
+        productTypeCount: null,
+        productCategoryCount: null,
+        legacyApiCallCount: null,
+        oldVersionHistoryCount: null,
+        snapshotCount: null,
+        formTypeCount: null,
+        formSubmissionCount: null,
+        aggregatedListCount: null,
+        publicToPrivateLeftoverCount: null,
+      },
+      migrationTag: 'unknown',
+      scores: { adoption: 0, engagement: 0, legacyRisk: 0, operationalRisk: 100 },
       errors: [describeError(error)],
     };
   }
 
   let parsedApps: ParsedApp[] = [];
+  let objectTypesRaw: unknown = [];
   const settingsCollection = `settings${suffix}`;
   const settingsDocumentId = `cms-settings-${tenant.tenantId}`;
   let settingsRead = false;
@@ -189,11 +286,20 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
     if (!settingsSnapshot.exists) {
       errors.push(`${settingsCollection}/${settingsDocumentId} was not found.`);
     } else {
-      parsedApps = parseApps(settingsSnapshot.get('objectTypes'));
+      objectTypesRaw = settingsSnapshot.get('objectTypes');
+      parsedApps = parseApps(objectTypesRaw);
       settingsRead = true;
     }
   } catch (error) {
     errors.push(`settings read failed: ${describeError(error)}`);
+  }
+
+  const appIds = parsedApps.map((app) => app.appId);
+  const duplicateAppIds = [
+    ...new Set(appIds.filter((appId, index) => appIds.indexOf(appId) !== index)),
+  ];
+  if (duplicateAppIds.length > 0) {
+    errors.push(`Duplicate app ids in objectTypes: ${duplicateAppIds.join(', ')}.`);
   }
 
   const applications: TenantAppStats[] = await mapWithConcurrency(
@@ -218,6 +324,14 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
         );
       }
 
+      const folderResult = await safeCountWhere(database, 'om_object_types', [
+        ['mainObjectType', app.appId],
+        ['tenantId', tenant.tenantId],
+      ]);
+      if (folderResult.error) {
+        errors.push(`${app.appId} folders: ${folderResult.error}`);
+      }
+
       return {
         appId: app.appId,
         name: app.name,
@@ -227,6 +341,7 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
         saveState: app.saveState,
         objectTable,
         objectCount: result.value,
+        folderCount: folderResult.value,
       };
     },
   );
@@ -292,6 +407,192 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
     errors.push(`Content Manager items: ${describeError(error)}`);
   }
 
+  const [publicEnabled, publicDisabled, privateEnabled, privateDisabled] = await Promise.all([
+    safeCountWhere(database, 'om_objects', [
+      ['tenantId', tenant.tenantId],
+      ['meta.status', 'enabled'],
+    ]),
+    safeCountWhere(database, 'om_objects', [
+      ['tenantId', tenant.tenantId],
+      ['meta.status', 'disabled'],
+    ]),
+    safeCountWhere(database, 'om_private_objects', [
+      ['tenantId', tenant.tenantId],
+      ['meta.status', 'enabled'],
+    ]),
+    safeCountWhere(database, 'om_private_objects', [
+      ['tenantId', tenant.tenantId],
+      ['meta.status', 'disabled'],
+    ]),
+  ]);
+  for (const [label, result] of [
+    ['om_objects enabled', publicEnabled],
+    ['om_objects disabled', publicDisabled],
+    ['om_private_objects enabled', privateEnabled],
+    ['om_private_objects disabled', privateDisabled],
+  ] as const) {
+    if (result.error) errors.push(`${label}: ${result.error}`);
+  }
+
+  const [newestPublicCreated, newestPrivateCreated, newestPublicUpdated, newestPrivateUpdated] =
+    await Promise.all([
+      newestTimestamp(database, 'om_objects', tenant.tenantId, 'created'),
+      newestTimestamp(database, 'om_private_objects', tenant.tenantId, 'created'),
+      newestTimestamp(database, 'om_objects', tenant.tenantId, 'lastUpdated'),
+      newestTimestamp(database, 'om_private_objects', tenant.tenantId, 'lastUpdated'),
+    ]);
+  for (const [label, result] of [
+    ['om_objects newest created', newestPublicCreated],
+    ['om_private_objects newest created', newestPrivateCreated],
+    ['om_objects newest updated', newestPublicUpdated],
+    ['om_private_objects newest updated', newestPrivateUpdated],
+  ] as const) {
+    if (result.error) errors.push(`${label}: ${result.error}`);
+  }
+
+  const userCollection = `users${suffix}`;
+  const userCount = await safeCountWhere(database, userCollection, [
+    ['tenantId', tenant.tenantId],
+  ]);
+  if (userCount.error) errors.push(`users count: ${userCount.error}`);
+  const newestUserCreated = await newestTimestamp(
+    database,
+    userCollection,
+    tenant.tenantId,
+    'created',
+  );
+  if (newestUserCreated.error) errors.push(`users newest created: ${newestUserCreated.error}`);
+
+  const contentTypeCount = await safeCountWhere(database, `sp_content_types${suffix}`, [
+    ['tenantId', tenant.tenantId],
+  ]);
+  if (contentTypeCount.error) errors.push(`sp_content_types count: ${contentTypeCount.error}`);
+
+  const newestContentUpdated = await newestTimestamp(
+    database,
+    contentCollection,
+    tenant.tenantId,
+    'lastUpdated',
+  );
+  if (newestContentUpdated.error) {
+    errors.push(`sp_contents newest updated: ${newestContentUpdated.error}`);
+  }
+
+  const legacyCounts = await Promise.all([
+    safeCountWhere(database, 'pm_product_types', [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, `pm_product_categories${suffix}`, [
+      ['tenantId', tenant.tenantId],
+    ]),
+    safeCountWhere(database, 'om_api_legacy_calls', [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, 'om_object_version_history', [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, `pm_entity_snapshots${suffix}`, [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, `form_types${suffix}`, [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, 'form_submissions', [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, 'om_aggregated_object_lists', [['tenantId', tenant.tenantId]]),
+  ]);
+  const legacyLabels = [
+    'pm_product_types',
+    'pm_product_categories',
+    'om_api_legacy_calls',
+    'om_object_version_history',
+    'pm_entity_snapshots',
+    'form_types',
+    'form_submissions',
+    'om_aggregated_object_lists',
+  ] as const;
+  legacyCounts.forEach((result, index) => {
+    if (result.error) errors.push(`${legacyLabels[index]}: ${result.error}`);
+  });
+  const [
+    productTypeCount,
+    productCategoryCount,
+    legacyApiCallCount,
+    oldVersionHistoryCount,
+    snapshotCount,
+    formTypeCount,
+    formSubmissionCount,
+    aggregatedListCount,
+  ] = legacyCounts;
+
+  const privateApps = parsedApps.filter(
+    (app) => app.publicAccess === 'no' && app.appId !== 'products',
+  );
+  let publicToPrivateLeftoverCount: number | null = 0;
+  for (const app of privateApps) {
+    const result = await safeCountWhere(database, 'om_objects', [
+      ['cmsObjectType', app.appId],
+      ['tenantId', tenant.tenantId],
+    ]);
+    if (result.error) {
+      publicToPrivateLeftoverCount = null;
+      errors.push(`public-to-private leftovers (${app.appId}): ${result.error}`);
+    } else if (
+      publicToPrivateLeftoverCount !== null &&
+      result.value !== null
+    ) {
+      publicToPrivateLeftoverCount += result.value;
+    }
+  }
+
+  const newestObjectCreatedAt = maxIsoTimestamp([
+    newestPublicCreated.value,
+    newestPrivateCreated.value,
+  ]);
+  const newestObjectUpdatedAt = maxIsoTimestamp([
+    newestPublicUpdated.value,
+    newestPrivateUpdated.value,
+  ]);
+  const newestActivityAt = maxIsoTimestamp([
+    newestObjectUpdatedAt,
+    newestContentUpdated.value,
+    newestUserCreated.value,
+  ]);
+
+  const hasLegacyContent =
+    (contentManagerItemCount ?? 0) > 0 || (contentTypeCount.value ?? 0) > 0;
+  const hasLegacyProducts =
+    (pmProducts.value ?? 0) > 0 ||
+    (productTypeCount.value ?? 0) > 0 ||
+    (productCategoryCount.value ?? 0) > 0;
+  const hasLegacyApi = (legacyApiCallCount.value ?? 0) > 0;
+  const hasLegacy = hasLegacyContent || hasLegacyProducts || hasLegacyApi;
+  const hasWebsiteBuilder = (websiteBuilderPageCount ?? 0) > 0;
+  const migrationTag: TenantStats['migrationTag'] =
+    hasWebsiteBuilder && hasLegacy
+      ? 'mixed'
+      : hasWebsiteBuilder
+        ? 'website-builder-only'
+        : hasLegacy
+          ? 'legacy-only'
+          : settingsRead
+            ? 'none'
+            : 'unknown';
+
+  const appRegistryBytes = estimateRegistryBytes(objectTypesRaw);
+  const adoption = Math.min(
+    100,
+    applications.length * 10 +
+      ((totalObjectCount ?? 0) > 0 ? 25 : 0) +
+      ((userCount.value ?? 0) > 0 ? 25 : 0) +
+      (hasWebsiteBuilder ? 15 : 0),
+  );
+  const engagement = engagementScore(newestActivityAt);
+  let legacyRisk = 0;
+  if ((contentManagerItemCount ?? 0) > 0) legacyRisk += 30;
+  if ((contentTypeCount.value ?? 0) > 0) legacyRisk += 15;
+  if (hasLegacyProducts) legacyRisk += 25;
+  if (hasLegacyApi) legacyRisk += 20;
+  if ((oldVersionHistoryCount.value ?? 0) > 0) legacyRisk += 10;
+  if ((publicToPrivateLeftoverCount ?? 0) > 0) legacyRisk += 10;
+  legacyRisk = Math.min(100, legacyRisk);
+
+  let operationalRisk = 0;
+  if (appRegistryBytes !== null && appRegistryBytes >= 950 * 1024) operationalRisk += 60;
+  else if (appRegistryBytes !== null && appRegistryBytes >= 700 * 1024) operationalRisk += 35;
+  if (totalObjectCount === null) operationalRisk += 20;
+  if (errors.length > 0) operationalRisk += 20;
+  operationalRisk = Math.min(100, operationalRisk);
+
   const status: TenantStats['status'] =
     !settingsRead && applications.length === 0
       ? 'failed'
@@ -308,17 +609,48 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
     status,
     applicationCount: applications.length,
     enabledApplicationCount: applications.filter((app) => !app.disabled).length,
+    disabledApplicationCount: applications.filter((app) => app.disabled).length,
     remoteApplicationCount: applications.filter((app) => app.scope === 'remote').length,
+    localApplicationCount: applications.filter((app) => app.scope === 'local').length,
+    duplicateAppIds,
+    appRegistryBytes,
     totalObjectCount,
     objectCounts: {
       omObjects: omObjects.value,
       omPrivateObjects: omPrivateObjects.value,
       pmProducts: pmProducts.value,
     },
+    objectStatusCounts: {
+      publicEnabled: publicEnabled.value,
+      publicDisabled: publicDisabled.value,
+      privateEnabled: privateEnabled.value,
+      privateDisabled: privateDisabled.value,
+    },
+    newestObjectCreatedAt,
+    newestObjectUpdatedAt,
+    userCount: userCount.value,
+    newestUserCreatedAt: newestUserCreated.value,
     applications,
     websiteBuilderAppId: websiteBuilderApp?.appId ?? null,
     websiteBuilderPageCount,
     contentManagerItemCount,
+    newestContentUpdatedAt: newestContentUpdated.value,
+    legacy: {
+      contentItemCount: contentManagerItemCount,
+      contentTypeCount: contentTypeCount.value,
+      productCount: pmProducts.value,
+      productTypeCount: productTypeCount.value,
+      productCategoryCount: productCategoryCount.value,
+      legacyApiCallCount: legacyApiCallCount.value,
+      oldVersionHistoryCount: oldVersionHistoryCount.value,
+      snapshotCount: snapshotCount.value,
+      formTypeCount: formTypeCount.value,
+      formSubmissionCount: formSubmissionCount.value,
+      aggregatedListCount: aggregatedListCount.value,
+      publicToPrivateLeftoverCount,
+    },
+    migrationTag,
+    scores: { adoption, engagement, legacyRisk, operationalRisk },
     errors: [...new Set(errors)],
   };
 }

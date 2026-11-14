@@ -2,15 +2,17 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Alert } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { Badge, StatusBadge } from '@/components/ui/badge';
 import { buttonClassName } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, EmptyState, StatTile } from '@/components/ui/card';
 import { RefreshTenantStatsButton } from '@/components/statistics/refresh-tenant-stats-button';
+import { TenantControlForm } from '@/components/statistics/tenant-control-form';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/client/format';
 import { roleCan } from '@/lib/server/auth/roles';
 import { requireServerSession } from '@/lib/server/auth/server-session';
 import { getRelayTenantDetail } from '@/lib/server/relay/relay-client';
 import { getTenantStats } from '@/lib/server/statistics/tenant-stats';
+import { getTenantControl } from '@/lib/server/statistics/tenant-control';
 import type { RelayTenantDetail } from '@/lib/shared/platform-types';
 
 function formatNullableNumber(value: number | null): string {
@@ -39,6 +41,9 @@ export default async function ProjectTenantPage({
   const stats = tenant
     ? await getTenantStats(projectId, tenant.tenantId).catch(() => null)
     : null;
+  const control = tenant
+    ? await getTenantControl(projectId, tenant.tenantId).catch(() => null)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -53,8 +58,9 @@ export default async function ProjectTenantPage({
           <p className="mt-1 font-mono text-xs text-slate-500">
             {tenant?.applicationId ?? tenantId}
           </p>
-          <p className="mt-2">
+          <p className="mt-2 flex items-center gap-2">
             <Badge tone="neutral">Read-only</Badge>
+            {control ? <StatusBadge status={control.status} /> : null}
           </p>
         </div>
         <Link
@@ -122,6 +128,27 @@ export default async function ProjectTenantPage({
 
           <Card>
             <CardHeader
+              title="Tenant control"
+              description="Admin-only lifecycle fields. Identity and host mapping come from the relay."
+            />
+            <CardBody>
+              {tenant && roleCan(session.role, 'tenant:write') ? (
+                <TenantControlForm
+                  projectId={tenant.projectId}
+                  applicationId={tenant.applicationId}
+                  fallbackDisplayName={tenant.tenantId}
+                  initial={control}
+                />
+              ) : (
+                <p className="text-sm text-slate-500">
+                  Your role can read this tenant but not edit its control record.
+                </p>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
               title="Statistics"
               description="Cached counts. The refresh reads tenant projects and writes only to the admin project."
               actions={
@@ -144,7 +171,7 @@ export default async function ProjectTenantPage({
                 <div className="space-y-4">
                   <p className="text-xs text-slate-500">
                     Computed {formatRelative(stats.computedAt)} ({formatDateTime(stats.computedAt)})
-                    in {stats.durationMs} ms. Status: {stats.status}.
+                    in {stats.durationMs} ms. Status: {stats.status}. Migration: {stats.migrationTag}.
                   </p>
 
                   <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -174,6 +201,67 @@ export default async function ProjectTenantPage({
                     />
                   </section>
 
+                  <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatTile
+                      label="Users"
+                      value={formatNullableNumber(stats.userCount)}
+                      hint={
+                        stats.newestUserCreatedAt
+                          ? `Newest ${formatRelative(stats.newestUserCreatedAt)}`
+                          : 'No user records'
+                      }
+                    />
+                    <StatTile
+                      label="Adoption score"
+                      value={`${stats.scores.adoption}/100`}
+                      hint="Apps, objects and users"
+                    />
+                    <StatTile
+                      label="Engagement score"
+                      value={`${stats.scores.engagement}/100`}
+                      hint={
+                        stats.newestObjectUpdatedAt
+                          ? `Last object update ${formatRelative(stats.newestObjectUpdatedAt)}`
+                          : 'No object activity'
+                      }
+                    />
+                    <StatTile
+                      label="Legacy risk"
+                      value={`${stats.scores.legacyRisk}/100`}
+                      tone={stats.scores.legacyRisk >= 50 ? 'warning' : 'default'}
+                      hint="Content Manager, products, legacy API"
+                    />
+                    <StatTile
+                      label="App registry"
+                      value={
+                        stats.appRegistryBytes === null
+                          ? '-'
+                          : `${Math.round(stats.appRegistryBytes / 1024)} KiB`
+                      }
+                      hint="Against the 950 KiB write guard"
+                    />
+                    <StatTile
+                      label="Operational risk"
+                      value={`${stats.scores.operationalRisk}/100`}
+                      tone={stats.scores.operationalRisk >= 50 ? 'danger' : 'default'}
+                      hint="Registry pressure and collection errors"
+                    />
+                    <StatTile
+                      label="Public / private objects"
+                      value={`${formatNullableNumber(
+                        stats.objectStatusCounts.publicEnabled,
+                      )} / ${formatNullableNumber(stats.objectStatusCounts.privateEnabled)}`}
+                      hint={`disabled ${formatNullableNumber(
+                        stats.objectStatusCounts.publicDisabled,
+                      )} / ${formatNullableNumber(stats.objectStatusCounts.privateDisabled)}`}
+                    />
+                    <StatTile
+                      label="Apps local / remote"
+                      value={`${stats.localApplicationCount} / ${stats.remoteApplicationCount}`}
+                      hint={`${stats.disabledApplicationCount} disabled`}
+                    />
+                  </section>
+
                   {stats.errors.length > 0 ? (
                     <Alert tone="warning" title="Partial statistics">
                       <ul className="list-disc space-y-1 pl-4">
@@ -193,6 +281,7 @@ export default async function ProjectTenantPage({
                             <th scope="col">Scope</th>
                             <th scope="col">State</th>
                             <th scope="col">Objects</th>
+                            <th scope="col">Folders</th>
                             <th scope="col">Table</th>
                           </tr>
                         </thead>
@@ -212,6 +301,9 @@ export default async function ProjectTenantPage({
                               <td className="text-sm text-slate-900">
                                 {formatNullableNumber(app.objectCount)}
                               </td>
+                              <td className="text-sm text-slate-900">
+                                {formatNullableNumber(app.folderCount)}
+                              </td>
                               <td className="font-mono text-xs text-slate-500">
                                 {app.objectTable}
                               </td>
@@ -221,6 +313,37 @@ export default async function ProjectTenantPage({
                       </table>
                     </div>
                   ) : null}
+
+                  <div>
+                    <h3 className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
+                      Legacy signals
+                    </h3>
+                    <dl className="mt-2 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        ['Content items', stats.legacy.contentItemCount],
+                        ['Content types', stats.legacy.contentTypeCount],
+                        ['Legacy products', stats.legacy.productCount],
+                        ['Product types', stats.legacy.productTypeCount],
+                        ['Product categories', stats.legacy.productCategoryCount],
+                        ['Legacy API calls', stats.legacy.legacyApiCallCount],
+                        ['Old version history', stats.legacy.oldVersionHistoryCount],
+                        ['Current snapshots', stats.legacy.snapshotCount],
+                        ['Form types', stats.legacy.formTypeCount],
+                        ['Form submissions', stats.legacy.formSubmissionCount],
+                        ['Aggregated lists', stats.legacy.aggregatedListCount],
+                        ['Public-to-private leftovers', stats.legacy.publicToPrivateLeftoverCount],
+                      ].map(([label, value]) => (
+                        <div key={String(label)}>
+                          <dt className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                            {label}
+                          </dt>
+                          <dd className="mt-0.5 text-slate-900">
+                            {formatNullableNumber(value as number | null)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
                 </div>
               )}
             </CardBody>

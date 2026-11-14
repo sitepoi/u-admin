@@ -382,6 +382,63 @@ Required composite indexes in every tenant-hosting project:
 
 The tenant totals and `sp_contents` counts use single-field automatic indexes.
 
+Additional composite indexes used by the expanded statistics:
+
+- `om_objects`: `tenantId` ASC, `meta.status` ASC
+- `om_private_objects`: `tenantId` ASC, `meta.status` ASC
+- `om_objects`: `tenantId` ASC, `created` DESC
+- `om_private_objects`: `tenantId` ASC, `created` DESC
+- `om_objects`: `tenantId` ASC, `lastUpdated` DESC
+- `om_private_objects`: `tenantId` ASC, `lastUpdated` DESC
+- `users{ext}`: `tenantId` ASC, `created` DESC
+- `sp_contents{ext}`: `tenantId` ASC, `lastUpdated` DESC
+
+Missing indexes do not fail the whole refresh. The affected metric is null and the
+tenant statistics show a partial error with the Firestore message.
+
+### 6.12 Tenant control record
+
+The admin project stores one control record per tenant in `platform_tenant_registry`.
+It is editable on the tenant page and contains:
+
+- relay identity: tenant id, application id, hosts, table extension, project id
+- lifecycle: status, plan, region, owner email, primary admin email, notes
+- first-seen timestamps and the last operator who changed it
+- denormalized counts and scores from the latest statistics refresh
+
+`createdAt` is the first time the control plane saw the tenant, not the real creation
+date. The relay has no creation timestamp. A true creation date, install/remove dates
+and status history require provisioning event logging at the moment they happen; they
+cannot be backfilled.
+
+Statistics refresh also exposes:
+
+- applications total, enabled, disabled, local, remote
+- duplicate app ids and approximate app-registry bytes
+- objects per app and folders per app
+- public and private object totals, enabled and disabled counts
+- newest object, user and content timestamps
+- users total
+- legacy signals: Content Manager items and types, product collections, legacy API
+  calls, old version history, current snapshots, forms, aggregated lists and
+  public-to-private leftovers
+- migration tag: `legacy-only`, `mixed`, `website-builder-only`, `none`
+- scores: adoption, engagement, legacy risk, operational risk
+
+Not yet collected because the field names or permissions are not confirmed:
+
+- `logs{ext}` and `ai_usage_logs{ext}` levels and weekly counts
+- API key stores (`tenants/{tenantId}/api_keys`, top-level `api_keys`,
+  `api_key_usage`) and quota fields
+- Storage bytes and file counts (needs a Storage read role)
+- `html_tools` storeId/local counts
+- design-format inspection in `om_object_categories`, `pm_field_groups` and app
+  `defaultCategories`
+- orphaned references, missing `tenantId` documents and unregistered
+  `mainObjectType` values, which require collection scans rather than counts
+- user role distribution and `userOrigin` counts, which need the role names and a
+  read strategy
+
 ## 7. Environment reference
 
 A detailed HTML reference with per-variable sourcing, common mistakes and the exact

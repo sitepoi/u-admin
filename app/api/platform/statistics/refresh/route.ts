@@ -13,6 +13,7 @@ import {
   getTenantStats,
   saveTenantStats,
 } from '@/lib/server/statistics/tenant-stats';
+import { syncTenantControlFromStats } from '@/lib/server/statistics/tenant-control';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       const stats = await collectTenantStats(tenant);
       await saveTenantStats(stats);
+      await syncTenantControlFromStats(stats).catch(() => null);
 
       await recordAudit({
         actor: {
