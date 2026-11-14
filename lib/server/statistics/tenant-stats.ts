@@ -6,6 +6,7 @@ import { getFirestore, type Firestore, type Query } from 'firebase-admin/firesto
 
 import { getPlatformFirestore } from '@/lib/server/firebase/admin';
 import { getProjectFirebaseApp } from '@/lib/server/firebase/project-app';
+import { toShortTenantId } from '@/lib/server/relay/relay-client';
 import type {
   RelayTenantSummary,
   TenantAppStats,
@@ -228,6 +229,13 @@ function engagementScore(newestActivityAt: string | null): number {
  * Reads only; the only write happens later, in the admin project cache.
  */
 export async function collectTenantStats(tenant: RelayTenantSummary): Promise<TenantStats> {
+  // Older relay documents may store the hostname as tenantId. All CMS
+  // collections and document ids use the short tenant name.
+  const shortTenantId = toShortTenantId(tenant.tenantId) || tenant.tenantId;
+  if (shortTenantId !== tenant.tenantId) {
+    tenant = { ...tenant, tenantId: shortTenantId };
+  }
+
   const startedAt = Date.now();
   const errors: string[] = [];
   const suffix = tableSuffix(tenant);

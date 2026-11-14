@@ -35,6 +35,17 @@ function getRelayProjectId(): string {
   return (process.env.SITEPOI_RELAY_PROJECT_ID ?? '').trim() || 'sitepoi-relay';
 }
 
+/**
+ * Relay documents sometimes store the full hostname as the tenant id, for
+ * example uniconbaseapps.uniconhub.com. CMS document ids use the short name
+ * (uniconbaseapps), so always normalize to the first label.
+ */
+export function toShortTenantId(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return trimmed.includes('.') ? trimmed.slice(0, trimmed.indexOf('.')) : trimmed;
+}
+
 /** Safe diagnostic: the service account email, never the private key. */
 function getServiceAccountEmailForDiagnostics(): string | null {
   try {
@@ -68,12 +79,13 @@ function decodeApplication(
   const projectId = typeof settings.projectId === 'string' ? settings.projectId : '';
   if (!projectId) return null;
 
-  const tenantId =
-    typeof data.id === 'string' && data.id.length > 0
-      ? data.id
-      : typeof settings.tenantId === 'string' && settings.tenantId.length > 0
-        ? settings.tenantId
-        : documentId.split('.')[0];
+  const rawTenantId =
+    typeof settings.tenantId === 'string' && settings.tenantId.length > 0
+      ? settings.tenantId
+      : typeof data.id === 'string' && data.id.length > 0
+        ? data.id
+        : documentId;
+  const tenantId = toShortTenantId(rawTenantId) || toShortTenantId(documentId);
 
   const hostNames = Array.isArray(data.hostNames)
     ? data.hostNames.filter((host): host is string => typeof host === 'string')
