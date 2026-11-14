@@ -4,6 +4,7 @@ import { Alert } from '@/components/ui/alert';
 import { StatusBadge, Badge } from '@/components/ui/badge';
 import { buttonClassName } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, EmptyState, StatTile } from '@/components/ui/card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { RefreshReportingButton } from '@/components/reporting/refresh-reporting-button';
 import { formatBytes, formatDateTime, formatNumber, formatRelative } from '@/lib/client/format';
 import { roleCan } from '@/lib/server/auth/roles';
@@ -227,7 +228,9 @@ export default async function DashboardPage() {
                   <Alert tone="warning" title="Partial collection">
                     <ul className="list-disc space-y-1 pl-4">
                       {snapshot.errors.map((snapshotError) => (
-                        <li key={snapshotError}>{snapshotError}</li>
+                        <li key={snapshotError}>
+                          <LinkifiedText text={snapshotError} />
+                        </li>
                       ))}
                     </ul>
                   </Alert>

@@ -50,8 +50,23 @@ function tableSuffix(tenant: RelayTenantSummary): string {
 
 function describeError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  const compact = message.replace(/\s+/g, ' ').trim().slice(0, 300);
-  return /index/i.test(compact) ? `${compact} (create the composite index and retry)` : compact;
+  const compact = message.replace(/\s+/g, ' ').trim();
+
+  // Firestore index errors include a long console URL. Never truncate it:
+  // the operator needs the complete link to create the index.
+  const urlMatch = compact.match(/https?:\/\/[^\s]+/);
+  if (urlMatch) {
+    const url = urlMatch[0];
+    const beforeUrl = compact.slice(0, compact.indexOf(url)).trim();
+    const prefix =
+      beforeUrl.length > 240 ? `${beforeUrl.slice(0, 240)}...` : beforeUrl;
+    return `${prefix} ${url}`.trim();
+  }
+
+  const truncated = compact.slice(0, 300);
+  return /index/i.test(truncated)
+    ? `${truncated} (create the composite index and retry)`
+    : truncated;
 }
 
 async function countWhere(

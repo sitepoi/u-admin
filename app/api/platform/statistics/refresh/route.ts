@@ -48,6 +48,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const cached = await getTenantStats(tenant.projectId, tenant.tenantId);
       if (
         cached &&
+        cached.status === 'ok' &&
         Date.now() - Date.parse(cached.computedAt) < MIN_REFRESH_AGE_MS
       ) {
         return jsonOk(

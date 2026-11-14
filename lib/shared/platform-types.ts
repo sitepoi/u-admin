@@ -240,6 +240,37 @@ export interface TenantStatsRollup {
   latestComputedAt: string | null;
 }
 
+export interface ApplicationUsageTenant {
+  projectId: string;
+  tenantId: string;
+  applicationId: string;
+  disabled: boolean;
+  scope: 'local' | 'remote';
+  objectCount: number | null;
+  folderCount: number | null;
+}
+
+export interface ApplicationUsageSummary {
+  appId: string;
+  name: string;
+  tenantCount: number;
+  enabledTenantCount: number;
+  remoteTenantCount: number;
+  localTenantCount: number;
+  totalObjectCount: number;
+  totalFolderCount: number;
+}
+
+export interface ApplicationUsageOverview {
+  applications: ApplicationUsageSummary[];
+  computedTenantCount: number;
+  latestComputedAt: string | null;
+}
+
+export interface ApplicationUsageDetail extends ApplicationUsageSummary {
+  tenants: ApplicationUsageTenant[];
+}
+
 export const AUDIT_ACTIONS = [
   'tenant.created',
   'tenant.updated',

@@ -22,6 +22,7 @@ export default async function PlatformLayout({
   const navItems: NavItem[] = [
     { href: '/', label: 'Dashboard', description: 'Platform overview' },
     { href: '/projects', label: 'Projects', description: 'Managed projects and tenants' },
+    { href: '/applications', label: 'Applications', description: 'Cross-tenant app usage' },
   ];
 
   if (roleCan(session.role, 'secret:metadata:read')) {

@@ -5,6 +5,7 @@ import { Alert } from '@/components/ui/alert';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { buttonClassName } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, EmptyState, StatTile } from '@/components/ui/card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { RefreshTenantStatsButton } from '@/components/statistics/refresh-tenant-stats-button';
 import { TenantControlForm } from '@/components/statistics/tenant-control-form';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/client/format';
@@ -266,11 +267,36 @@ export default async function ProjectTenantPage({
                     <Alert tone="warning" title="Partial statistics">
                       <ul className="list-disc space-y-1 pl-4">
                         {stats.errors.map((statsError) => (
-                          <li key={statsError}>{statsError}</li>
+                          <li key={statsError}>
+                            <LinkifiedText text={statsError} />
+                          </li>
                         ))}
                       </ul>
                     </Alert>
                   ) : null}
+
+                  <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+                    <summary className="cursor-pointer font-medium text-slate-700">
+                      Required Firestore indexes (create once per tenant project)
+                    </summary>
+                    <ul className="mt-2 space-y-1 font-mono text-slate-600">
+                      <li>om_objects: cmsObjectType ASC, tenantId ASC</li>
+                      <li>om_private_objects: cmsObjectType ASC, tenantId ASC</li>
+                      <li>om_objects: tenantId ASC, meta.status ASC</li>
+                      <li>om_private_objects: tenantId ASC, meta.status ASC</li>
+                      <li>om_objects: tenantId ASC, created DESC</li>
+                      <li>om_private_objects: tenantId ASC, created DESC</li>
+                      <li>om_objects: tenantId ASC, lastUpdated DESC</li>
+                      <li>om_private_objects: tenantId ASC, lastUpdated DESC</li>
+                      <li>users{'{ext}'}: tenantId ASC, created DESC</li>
+                      <li>sp_contents{'{ext}'}: tenantId ASC, lastUpdated DESC</li>
+                      <li>om_object_types: mainObjectType ASC, tenantId ASC</li>
+                    </ul>
+                    <p className="mt-2 text-slate-500">
+                      {'{ext}'} means -&lt;tableExtension&gt; when the relay sets one. The array
+                      above is also in README section 6.11.
+                    </p>
+                  </details>
 
                   {stats.applications.length > 0 ? (
                     <div className="overflow-x-auto">

@@ -17,6 +17,7 @@ const STATUS_STYLES: Record<string, string> = {
   'pending-delivery': 'bg-amber-50 text-amber-700 ring-amber-600/20',
   'rotation-due': 'bg-amber-50 text-amber-700 ring-amber-600/20',
   suspended: 'bg-orange-50 text-orange-700 ring-orange-600/20',
+  disabled: 'bg-slate-100 text-slate-500 ring-slate-400/20',
   failed: 'bg-rose-50 text-rose-700 ring-rose-600/20',
   error: 'bg-rose-50 text-rose-700 ring-rose-600/20',
   denied: 'bg-rose-50 text-rose-700 ring-rose-600/20',

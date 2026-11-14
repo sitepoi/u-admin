@@ -439,6 +439,22 @@ Not yet collected because the field names or permissions are not confirmed:
 - user role distribution and `userOrigin` counts, which need the role names and a
   read strategy
 
+### 6.13 Cross-tenant application usage
+
+`/applications` groups the cached `TenantStats.applications` arrays by `appId` and shows:
+
+- number of tenants using the application
+- how many have it enabled
+- remote (store) versus local (tenant-authored) counts
+- total objects and folders across those tenants
+
+Opening an application lists every tenant that uses it, with project, scope, state,
+object count, folder count and a link to the tenant page.
+
+The view reads only `platform_tenant_stats` in the admin project. No tenant project is
+queried. Only tenants with cached statistics are included, so refresh a tenant's
+statistics to add it to the cross-tenant totals.
+
 ## 7. Environment reference
 
 A detailed HTML reference with per-variable sourcing, common mistakes and the exact
