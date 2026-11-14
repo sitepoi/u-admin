@@ -106,6 +106,17 @@ export const refreshTenantStatsRequestSchema = z
 
 export type RefreshTenantStatsRequest = z.infer<typeof refreshTenantStatsRequestSchema>;
 
+export const refreshAllTenantStatsRequestSchema = z
+  .object({
+    projectId: z.string().trim().min(1).max(120).optional(),
+    offset: z.number().int().min(0).optional(),
+    maxTenants: z.number().int().min(1).max(10).optional(),
+    force: z.boolean().optional(),
+  })
+  .strict();
+
+export type RefreshAllTenantStatsRequest = z.infer<typeof refreshAllTenantStatsRequestSchema>;
+
 export const updateTenantControlRequestSchema = z
   .object({
     displayName: z.string().trim().min(1).max(120).optional(),

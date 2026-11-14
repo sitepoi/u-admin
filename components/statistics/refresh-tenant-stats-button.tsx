@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { apiRequest, ApiClientError } from '@/lib/client/api';
+import { formatNumber } from '@/lib/client/format';
+import type { FirestoreCostSummary, TenantStats } from '@/lib/shared/platform-types';
+
+interface RefreshTenantStatsResponse {
+  stats: TenantStats;
+  skipped: boolean;
+  reason?: string;
+  cost: FirestoreCostSummary;
+}
 
 export function RefreshTenantStatsButton({
   projectId,
@@ -18,15 +27,25 @@ export function RefreshTenantStatsButton({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [costMessage, setCostMessage] = useState<string | null>(null);
 
   async function handleRefresh(): Promise<void> {
     setPending(true);
     setErrorMessage(null);
+    setCostMessage(null);
     try {
-      await apiRequest('/api/platform/statistics/refresh', {
-        method: 'POST',
-        body: { projectId, tenantId, applicationId },
-      });
+      const result = await apiRequest<RefreshTenantStatsResponse>(
+        '/api/platform/statistics/refresh',
+        {
+          method: 'POST',
+          body: { projectId, tenantId, applicationId },
+        },
+      );
+      setCostMessage(
+        `${result.skipped ? 'Cached result.' : 'Refreshed.'} ${formatNumber(
+          result.cost.reads,
+        )} reads / ${formatNumber(result.cost.writes)} writes.`,
+      );
       router.refresh();
     } catch (error) {
       setErrorMessage(
@@ -48,6 +67,11 @@ export function RefreshTenantStatsButton({
       >
         {pending ? 'Refreshing...' : 'Refresh statistics'}
       </Button>
+      {costMessage ? (
+        <span aria-live="polite" className="max-w-xs text-right text-xs text-slate-500">
+          {costMessage}
+        </span>
+      ) : null}
       {errorMessage ? (
         <span className="max-w-xs text-right text-xs text-rose-600">{errorMessage}</span>
       ) : null}

@@ -50,6 +50,8 @@ async function executeRefresh(
       tenantCount: result.tenantCount,
       tenantFailureCount: result.tenantFailureCount,
       status: result.platformSnapshot.status,
+      reads: result.cost.reads,
+      writes: result.cost.writes + 1,
     },
     context,
   });
@@ -61,6 +63,12 @@ async function executeRefresh(
       tenantCount: result.tenantCount,
       tenantFailureCount: result.tenantFailureCount,
       platformSnapshot: result.platformSnapshot,
+      cost: {
+        ...result.cost,
+        // The audit entry is a write too.
+        writes: result.cost.writes + 1,
+        operations: result.cost.operations + 1,
+      },
     },
     { requestId },
   );

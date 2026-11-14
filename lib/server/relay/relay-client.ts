@@ -12,6 +12,7 @@ import {
 
 import { ApiError } from '@/lib/server/errors';
 import { getProjectAccessConfig } from '@/lib/server/env';
+import { FirestoreCostMeter } from '@/lib/server/firestore/cost-meter';
 import { getProjectFirebaseApp } from '@/lib/server/firebase/project-app';
 import type {
   RelayProjectSummary,
@@ -112,7 +113,9 @@ let cachedApplications: {
  * the only place the Firebase project id exists. The decoded config contains an
  * apiKey, so it is never logged or returned to the browser.
  */
-export async function listRelayApplications(): Promise<RelayTenantSummary[]> {
+export async function listRelayApplications(
+  meter?: FirestoreCostMeter,
+): Promise<RelayTenantSummary[]> {
   if (cachedApplications && cachedApplications.expiresAt > Date.now()) {
     return cachedApplications.value;
   }
@@ -132,6 +135,7 @@ export async function listRelayApplications(): Promise<RelayTenantSummary[]> {
       if (lastDocument) query = query.startAfter(lastDocument);
 
       const snapshot = await query.get();
+      meter?.recordDocumentReads(snapshot.size);
       for (const document of snapshot.docs) {
         const application = decodeApplication(document.id, document.data());
         if (application) applications.push(application);
@@ -192,6 +196,7 @@ export async function listRelayTenants(projectId: string): Promise<RelayTenantSu
 
 export async function getRelayTenant(
   applicationIdInput: string,
+  meter?: FirestoreCostMeter,
 ): Promise<RelayTenantSummary | null> {
   const relayProjectId = getRelayProjectId();
   const applicationId = applicationIdInput.trim();
@@ -209,6 +214,7 @@ export async function getRelayTenant(
         .collection(APPLICATIONS_COLLECTION)
         .doc(candidateId)
         .get();
+      meter?.recordDocumentReads(1);
       if (snapshot.exists) {
         const application = decodeApplication(snapshot.id, snapshot.data() ?? {});
         if (application) return application;
@@ -244,8 +250,9 @@ function readNestedString(
  */
 export async function getRelayTenantDetail(
   applicationIdInput: string,
+  meter?: FirestoreCostMeter,
 ): Promise<RelayTenantDetail | null> {
-  const tenant = await getRelayTenant(applicationIdInput);
+  const tenant = await getRelayTenant(applicationIdInput, meter);
   if (!tenant) return null;
 
   let companyName: string | null = null;
@@ -259,6 +266,7 @@ export async function getRelayTenantDetail(
       .collection('settings')
       .doc(`website-settings-${tenant.tenantId}`)
       .get();
+    meter?.recordDocumentReads(1);
     if (snapshot.exists) {
       const data = snapshot.data() ?? {};
       companyName = readNestedString(data, 'texts', 'companyName');

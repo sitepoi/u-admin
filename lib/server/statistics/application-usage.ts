@@ -70,16 +70,22 @@ function buildUsageAccumulators(statistics: TenantStats[]): {
   return { applications, latestComputedAt };
 }
 
-async function readCachedStatistics(): Promise<TenantStats[]> {
+async function readCachedStatistics(): Promise<{
+  statistics: TenantStats[];
+  documentReads: number;
+}> {
   const snapshot = await getPlatformFirestore()
     .collection(TENANT_STATS_COLLECTION)
     .limit(1000)
     .get();
-  return snapshot.docs.map((document) => document.data() as TenantStats);
+  return {
+    statistics: snapshot.docs.map((document) => document.data() as TenantStats),
+    documentReads: snapshot.size,
+  };
 }
 
 export async function getApplicationUsageOverview(): Promise<ApplicationUsageOverview> {
-  const statistics = await readCachedStatistics();
+  const { statistics, documentReads } = await readCachedStatistics();
   const { applications, latestComputedAt } = buildUsageAccumulators(statistics);
 
   return {
@@ -91,13 +97,14 @@ export async function getApplicationUsageOverview(): Promise<ApplicationUsageOve
       ),
     computedTenantCount: statistics.length,
     latestComputedAt,
+    pageReads: documentReads,
   };
 }
 
 export async function getApplicationUsageDetail(
   appId: string,
 ): Promise<ApplicationUsageDetail | null> {
-  const statistics = await readCachedStatistics();
+  const { statistics, documentReads } = await readCachedStatistics();
   const { applications } = buildUsageAccumulators(statistics);
   const accumulator = applications.get(appId);
   if (!accumulator) return null;
@@ -109,5 +116,6 @@ export async function getApplicationUsageDetail(
         left.projectId.localeCompare(right.projectId) ||
         left.tenantId.localeCompare(right.tenantId),
     ),
+    pageReads: documentReads,
   };
 }

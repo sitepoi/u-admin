@@ -455,6 +455,41 @@ The view reads only `platform_tenant_stats` in the admin project. No tenant proj
 queried. Only tenants with cached statistics are included, so refresh a tenant's
 statistics to add it to the cross-tenant totals.
 
+### 6.14 Analyze all tenants and Firestore cost
+
+`/applications` has an **Analyze all tenants** button. It walks every relay tenant and
+refreshes missing or stale statistics in time-boxed batches:
+
+- the browser calls `POST /api/platform/statistics/refresh-all` with an `offset`
+- the route examines up to 10 tenants or 5 seconds per request
+- the browser repeats with `nextOffset` until `done` is true
+- fresh cached results (under 15 minutes old, status `ok`) are skipped unless `force`
+  is set
+- one audit entry and one `platform_operation_metrics/statistics` record are written
+  per batch request
+
+Every response includes the measured Firestore usage. `FirestoreCostMeter` counts:
+
+- 1 read per document returned by `get()` or a query
+- 1 read per 1,000 count-aggregation index entries, minimum 1 per count query
+- 1 write per `set()`, `update()`, `create()` or `delete()`
+
+Approximate cost per tenant refresh (`A` apps, `P` private apps):
+
+| Action | Reads | Writes |
+| --- | --- | --- |
+| Refresh one tenant | `30 + 2A + P` | 3 (statistics, control, audit) |
+| Analyze all tenants, per tenant | `29 + 2A + P` | 2 (statistics, control) |
+| Analyze all tenants, per batch | relay list plus 1 metrics read | 2 (metrics, audit) |
+| Open `/applications` | 1 per cached tenant + 1 metrics | 0 |
+| Open `/applications/[appId]` | 1 per cached tenant | 0 |
+
+The formulas are the minimum. A count query over more than 1,000 matched documents adds
+one read per additional 1,000. The legacy **Refresh reporting** button is much more
+expensive: it samples up to 500 object documents per project for the type breakdown
+(about 508 reads per project) and writes 2 documents per project plus the platform
+snapshot and the audit entry.
+
 ## 7. Environment reference
 
 A detailed HTML reference with per-variable sourcing, common mistakes and the exact

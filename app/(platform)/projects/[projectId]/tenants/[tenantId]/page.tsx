@@ -11,6 +11,7 @@ import { TenantControlForm } from '@/components/statistics/tenant-control-form';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/client/format';
 import { roleCan } from '@/lib/server/auth/roles';
 import { requireServerSession } from '@/lib/server/auth/server-session';
+import { FirestoreCostMeter } from '@/lib/server/firestore/cost-meter';
 import { getRelayTenantDetail } from '@/lib/server/relay/relay-client';
 import { getTenantStats } from '@/lib/server/statistics/tenant-stats';
 import { getTenantControl } from '@/lib/server/statistics/tenant-control';
@@ -30,21 +31,23 @@ export default async function ProjectTenantPage({
   const session = await requireServerSession();
   const { projectId, tenantId } = await params;
 
+  const pageMeter = new FirestoreCostMeter();
   let tenant: RelayTenantDetail | null = null;
   let readError: string | null = null;
   try {
-    tenant = await getRelayTenantDetail(tenantId);
+    tenant = await getRelayTenantDetail(tenantId, pageMeter);
   } catch (error) {
     readError = error instanceof Error ? error.message : 'The tenant could not be read.';
   }
   if (!tenant && !readError) notFound();
 
   const stats = tenant
-    ? await getTenantStats(projectId, tenant.tenantId).catch(() => null)
+    ? await getTenantStats(projectId, tenant.tenantId, pageMeter).catch(() => null)
     : null;
   const control = tenant
-    ? await getTenantControl(projectId, tenant.tenantId).catch(() => null)
+    ? await getTenantControl(projectId, tenant.tenantId, pageMeter).catch(() => null)
     : null;
+  const pageReadCount = pageMeter.toSummary().reads;
 
   return (
     <div className="space-y-6">
@@ -62,6 +65,9 @@ export default async function ProjectTenantPage({
           <p className="mt-2 flex items-center gap-2">
             <Badge tone="neutral">Read-only</Badge>
             {control ? <StatusBadge status={control.status} /> : null}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            This page read {formatNumber(pageReadCount)} Firestore document(s).
           </p>
         </div>
         <Link
@@ -173,6 +179,9 @@ export default async function ProjectTenantPage({
                   <p className="text-xs text-slate-500">
                     Computed {formatRelative(stats.computedAt)} ({formatDateTime(stats.computedAt)})
                     in {stats.durationMs} ms. Status: {stats.status}. Migration: {stats.migrationTag}.
+                    {stats.collectionCost
+                      ? ` Collection cost: ${formatNumber(stats.collectionCost.reads)} reads.`
+                      : ''}
                   </p>
 
                   <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

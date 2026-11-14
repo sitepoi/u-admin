@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 
 import { ApiError } from '@/lib/server/errors';
 import { recordAudit } from '@/lib/server/audit/audit-service';
+import { FirestoreCostMeter } from '@/lib/server/firestore/cost-meter';
 import { runApiRoute } from '@/lib/server/http/route-handler';
 import { jsonOk } from '@/lib/server/http/respond';
 import { parseJsonBody, refreshTenantStatsRequestSchema } from '@/lib/server/validation/schemas';
@@ -34,8 +35,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     async (context) => {
       if (!context.session) throw ApiError.unauthorized();
 
+      const requestMeter = new FirestoreCostMeter();
       const body = await parseJsonBody(request, refreshTenantStatsRequestSchema);
-      const tenant = await getRelayTenant(body.applicationId ?? body.tenantId);
+      const tenant = await getRelayTenant(body.applicationId ?? body.tenantId, requestMeter);
 
       if (
         !tenant ||
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         throw ApiError.notFound('tenant');
       }
 
-      const cached = await getTenantStats(tenant.projectId, tenant.tenantId);
+      const cached = await getTenantStats(tenant.projectId, tenant.tenantId, requestMeter);
       if (
         cached &&
         cached.status === 'ok' &&
@@ -56,14 +58,18 @@ export async function POST(request: NextRequest): Promise<Response> {
             stats: cached,
             skipped: true,
             reason: 'Statistics were refreshed less than 15 minutes ago.',
+            cost: requestMeter.toSummary(),
           },
           { requestId: context.requestId },
         );
       }
 
-      const stats = await collectTenantStats(tenant);
-      await saveTenantStats(stats);
-      await syncTenantControlFromStats(stats).catch(() => null);
+      const collectionMeter = new FirestoreCostMeter();
+      const stats = await collectTenantStats(tenant, collectionMeter);
+      stats.collectionCost = collectionMeter.toSummary();
+
+      await saveTenantStats(stats, requestMeter);
+      await syncTenantControlFromStats(stats, requestMeter).catch(() => null);
 
       await recordAudit({
         actor: {
@@ -85,11 +91,17 @@ export async function POST(request: NextRequest): Promise<Response> {
           websiteBuilderPageCount: stats.websiteBuilderPageCount,
           contentManagerItemCount: stats.contentManagerItemCount,
           errorCount: stats.errors.length,
+          reads: collectionMeter.toSummary().reads,
         },
         context: context.auditContext,
       });
+      requestMeter.recordWrites(1);
+      requestMeter.merge(collectionMeter);
 
-      return jsonOk({ stats, skipped: false }, { requestId: context.requestId });
+      return jsonOk(
+        { stats, skipped: false, cost: requestMeter.toSummary() },
+        { requestId: context.requestId },
+      );
     },
   );
 }

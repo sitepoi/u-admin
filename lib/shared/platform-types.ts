@@ -153,6 +153,28 @@ export interface TenantHealthScores {
   operationalRisk: number;
 }
 
+/**
+ * Estimated Firestore usage for one action.
+ *
+ * Count aggregations are billed as one read per 1,000 matched index entries
+ * with a minimum of one read, so `countReads` can be higher than
+ * `countQueries` on large collections.
+ */
+export interface FirestoreCostSummary {
+  /** Total reads: document reads plus count-aggregation reads. */
+  reads: number;
+  /** Document writes. */
+  writes: number;
+  /** Number of count() aggregations executed. */
+  countQueries: number;
+  /** Reads attributed to count() aggregations. */
+  countReads: number;
+  /** Reads for documents fetched with get() or query.get(). */
+  documentReads: number;
+  /** Count queries plus document reads plus writes. */
+  operations: number;
+}
+
 /** Cached per-tenant statistics. Never written to tenant projects. */
 export interface TenantStats {
   projectId: string;
@@ -195,6 +217,8 @@ export interface TenantStats {
   migrationTag: 'legacy-only' | 'mixed' | 'website-builder-only' | 'none' | 'unknown';
   scores: TenantHealthScores;
   errors: string[];
+  /** Firestore reads spent collecting this document from the tenant project. */
+  collectionCost?: FirestoreCostSummary;
 }
 
 export const TENANT_LIFECYCLE_STATUSES = ['active', 'trial', 'suspended', 'archived'] as const;
@@ -265,10 +289,66 @@ export interface ApplicationUsageOverview {
   applications: ApplicationUsageSummary[];
   computedTenantCount: number;
   latestComputedAt: string | null;
+  /** Cached statistics documents read while building this page. */
+  pageReads: number;
 }
 
 export interface ApplicationUsageDetail extends ApplicationUsageSummary {
   tenants: ApplicationUsageTenant[];
+  /** Cached statistics documents read while building this page. */
+  pageReads: number;
+}
+
+/** One tenant inside one batch request of the "analyze all tenants" action. */
+export interface StatisticsBatchTenantResult {
+  projectId: string;
+  tenantId: string;
+  applicationId: string;
+  outcome: 'refreshed' | 'skipped' | 'failed';
+  durationMs: number;
+  errorCount: number;
+  /** First collection error, shortened for display. */
+  errorMessage: string | null;
+  cost: FirestoreCostSummary;
+}
+
+/** Response for one batch request. The client repeats until `done` is true. */
+export interface StatisticsBatchRefreshResponse {
+  totalTenants: number;
+  examinedTenants: number;
+  refreshedTenants: number;
+  skippedTenants: number;
+  failedTenants: number;
+  nextOffset: number;
+  done: boolean;
+  cost: FirestoreCostSummary;
+  results: StatisticsBatchTenantResult[];
+}
+
+/** Persisted server record of one batch request. */
+export interface StatisticsOperationRun {
+  runId: string;
+  startedAt: string;
+  finishedAt: string;
+  totalTenants: number;
+  examinedTenants: number;
+  refreshedTenants: number;
+  skippedTenants: number;
+  failedTenants: number;
+  reads: number;
+  writes: number;
+  durationMs: number;
+}
+
+export interface StatisticsOperationMetrics {
+  lastRun: StatisticsOperationRun | null;
+  lifetime: {
+    runs: number;
+    tenantsExamined: number;
+    tenantsFailed: number;
+    reads: number;
+    writes: number;
+  };
 }
 
 export const AUDIT_ACTIONS = [
@@ -293,6 +373,7 @@ export const AUDIT_ACTIONS = [
   'project.tenant_created',
   'project.tenant_updated',
   'statistics.refreshed',
+  'statistics.batch_refreshed',
   'tenant.control_updated',
 ] as const;
 

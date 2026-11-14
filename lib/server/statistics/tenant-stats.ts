@@ -4,6 +4,7 @@ import { Buffer } from 'node:buffer';
 
 import { getFirestore, type Firestore, type Query } from 'firebase-admin/firestore';
 
+import { FirestoreCostMeter } from '@/lib/server/firestore/cost-meter';
 import { getPlatformFirestore } from '@/lib/server/firebase/admin';
 import { getProjectFirebaseApp } from '@/lib/server/firebase/project-app';
 import { toShortTenantId } from '@/lib/server/relay/relay-client';
@@ -74,23 +75,27 @@ async function countWhere(
   database: Firestore,
   collectionName: string,
   filters: ReadonlyArray<readonly [string, string]>,
+  meter?: FirestoreCostMeter,
 ): Promise<number> {
   let query: Query = database.collection(collectionName);
   for (const [field, value] of filters) {
     query = query.where(field, '==', value);
   }
   const snapshot = await query.count().get();
-  return snapshot.data().count;
+  const count = snapshot.data().count;
+  meter?.recordCountQuery(count);
+  return count;
 }
 
 async function safeCountWhere(
   database: Firestore,
   collectionName: string,
   filters: ReadonlyArray<readonly [string, string]>,
+  meter?: FirestoreCostMeter,
 ): Promise<{ value: number | null; error: string | null }> {
   try {
     return {
-      value: await countWhere(database, collectionName, filters),
+      value: await countWhere(database, collectionName, filters, meter),
       error: null,
     };
   } catch (error) {
@@ -189,6 +194,7 @@ async function newestTimestamp(
   collectionName: string,
   tenantId: string,
   field: string,
+  meter?: FirestoreCostMeter,
 ): Promise<{ value: string | null; error: string | null }> {
   try {
     const snapshot = await database
@@ -197,6 +203,7 @@ async function newestTimestamp(
       .orderBy(field, 'desc')
       .limit(1)
       .get();
+    meter?.recordDocumentReads(snapshot.size);
     if (snapshot.empty) return { value: null, error: null };
     return { value: timestampToString(snapshot.docs[0].get(field)), error: null };
   } catch (error) {
@@ -228,7 +235,10 @@ function engagementScore(newestActivityAt: string | null): number {
  * Collects one tenant's statistics using Firestore count aggregations.
  * Reads only; the only write happens later, in the admin project cache.
  */
-export async function collectTenantStats(tenant: RelayTenantSummary): Promise<TenantStats> {
+export async function collectTenantStats(
+  tenant: RelayTenantSummary,
+  meter: FirestoreCostMeter = new FirestoreCostMeter(),
+): Promise<TenantStats> {
   // Older relay documents may store the hostname as tenantId. All CMS
   // collections and document ids use the short tenant name.
   const shortTenantId = toShortTenantId(tenant.tenantId) || tenant.tenantId;
@@ -292,6 +302,7 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
       migrationTag: 'unknown',
       scores: { adoption: 0, engagement: 0, legacyRisk: 0, operationalRisk: 100 },
       errors: [describeError(error)],
+      collectionCost: meter.toSummary(),
     };
   }
 
@@ -306,6 +317,7 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
       .collection(settingsCollection)
       .doc(settingsDocumentId)
       .get();
+    meter.recordDocumentReads(1);
     if (!settingsSnapshot.exists) {
       errors.push(`${settingsCollection}/${settingsDocumentId} was not found.`);
     } else {
@@ -339,6 +351,7 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
               ['cmsObjectType', app.appId],
               ['tenantId', tenant.tenantId],
             ],
+        meter,
       );
       if (result.error) errors.push(`${app.appId}: ${result.error}`);
       if (objectTable === 'pm_products') {
@@ -347,10 +360,15 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
         );
       }
 
-      const folderResult = await safeCountWhere(database, 'om_object_types', [
-        ['mainObjectType', app.appId],
-        ['tenantId', tenant.tenantId],
-      ]);
+      const folderResult = await safeCountWhere(
+        database,
+        'om_object_types',
+        [
+          ['mainObjectType', app.appId],
+          ['tenantId', tenant.tenantId],
+        ],
+        meter,
+      );
       if (folderResult.error) {
         errors.push(`${app.appId} folders: ${folderResult.error}`);
       }
@@ -370,9 +388,9 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
   );
 
   const [omObjects, omPrivateObjects, pmProducts] = await Promise.all([
-    safeCountWhere(database, 'om_objects', [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, 'om_private_objects', [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, 'pm_products', [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, 'om_objects', [['tenantId', tenant.tenantId]], meter),
+    safeCountWhere(database, 'om_private_objects', [['tenantId', tenant.tenantId]], meter),
+    safeCountWhere(database, 'pm_products', [['tenantId', tenant.tenantId]], meter),
   ]);
 
   for (const [label, result] of [
@@ -403,6 +421,7 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
         ['cmsObjectType', websiteBuilderApp.appId],
         ['tenantId', tenant.tenantId],
       ],
+      meter,
     );
     if (result.error) errors.push(`Website Builder pages: ${result.error}`);
     websiteBuilderPageCount = result.value;
@@ -411,14 +430,18 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
   const contentCollection = `sp_contents${suffix}`;
   let contentManagerItemCount: number | null = null;
   try {
-    const total = await countWhere(database, contentCollection, [
-      ['tenantId', tenant.tenantId],
-    ]);
+    const total = await countWhere(
+      database,
+      contentCollection,
+      [['tenantId', tenant.tenantId]],
+      meter,
+    );
     let excludedSettingsItem = 0;
     const settingsItem = await database
       .collection(contentCollection)
       .doc('settings-items')
       .get();
+    meter.recordDocumentReads(1);
     if (
       settingsItem.exists &&
       asString(settingsItem.get('tenantId')) === tenant.tenantId
@@ -431,22 +454,42 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
   }
 
   const [publicEnabled, publicDisabled, privateEnabled, privateDisabled] = await Promise.all([
-    safeCountWhere(database, 'om_objects', [
-      ['tenantId', tenant.tenantId],
-      ['meta.status', 'enabled'],
-    ]),
-    safeCountWhere(database, 'om_objects', [
-      ['tenantId', tenant.tenantId],
-      ['meta.status', 'disabled'],
-    ]),
-    safeCountWhere(database, 'om_private_objects', [
-      ['tenantId', tenant.tenantId],
-      ['meta.status', 'enabled'],
-    ]),
-    safeCountWhere(database, 'om_private_objects', [
-      ['tenantId', tenant.tenantId],
-      ['meta.status', 'disabled'],
-    ]),
+    safeCountWhere(
+      database,
+      'om_objects',
+      [
+        ['tenantId', tenant.tenantId],
+        ['meta.status', 'enabled'],
+      ],
+      meter,
+    ),
+    safeCountWhere(
+      database,
+      'om_objects',
+      [
+        ['tenantId', tenant.tenantId],
+        ['meta.status', 'disabled'],
+      ],
+      meter,
+    ),
+    safeCountWhere(
+      database,
+      'om_private_objects',
+      [
+        ['tenantId', tenant.tenantId],
+        ['meta.status', 'enabled'],
+      ],
+      meter,
+    ),
+    safeCountWhere(
+      database,
+      'om_private_objects',
+      [
+        ['tenantId', tenant.tenantId],
+        ['meta.status', 'disabled'],
+      ],
+      meter,
+    ),
   ]);
   for (const [label, result] of [
     ['om_objects enabled', publicEnabled],
@@ -459,10 +502,10 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
 
   const [newestPublicCreated, newestPrivateCreated, newestPublicUpdated, newestPrivateUpdated] =
     await Promise.all([
-      newestTimestamp(database, 'om_objects', tenant.tenantId, 'created'),
-      newestTimestamp(database, 'om_private_objects', tenant.tenantId, 'created'),
-      newestTimestamp(database, 'om_objects', tenant.tenantId, 'lastUpdated'),
-      newestTimestamp(database, 'om_private_objects', tenant.tenantId, 'lastUpdated'),
+      newestTimestamp(database, 'om_objects', tenant.tenantId, 'created', meter),
+      newestTimestamp(database, 'om_private_objects', tenant.tenantId, 'created', meter),
+      newestTimestamp(database, 'om_objects', tenant.tenantId, 'lastUpdated', meter),
+      newestTimestamp(database, 'om_private_objects', tenant.tenantId, 'lastUpdated', meter),
     ]);
   for (const [label, result] of [
     ['om_objects newest created', newestPublicCreated],
@@ -474,21 +517,28 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
   }
 
   const userCollection = `users${suffix}`;
-  const userCount = await safeCountWhere(database, userCollection, [
-    ['tenantId', tenant.tenantId],
-  ]);
+  const userCount = await safeCountWhere(
+    database,
+    userCollection,
+    [['tenantId', tenant.tenantId]],
+    meter,
+  );
   if (userCount.error) errors.push(`users count: ${userCount.error}`);
   const newestUserCreated = await newestTimestamp(
     database,
     userCollection,
     tenant.tenantId,
     'created',
+    meter,
   );
   if (newestUserCreated.error) errors.push(`users newest created: ${newestUserCreated.error}`);
 
-  const contentTypeCount = await safeCountWhere(database, `sp_content_types${suffix}`, [
-    ['tenantId', tenant.tenantId],
-  ]);
+  const contentTypeCount = await safeCountWhere(
+    database,
+    `sp_content_types${suffix}`,
+    [['tenantId', tenant.tenantId]],
+    meter,
+  );
   if (contentTypeCount.error) errors.push(`sp_content_types count: ${contentTypeCount.error}`);
 
   const newestContentUpdated = await newestTimestamp(
@@ -496,22 +546,41 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
     contentCollection,
     tenant.tenantId,
     'lastUpdated',
+    meter,
   );
   if (newestContentUpdated.error) {
     errors.push(`sp_contents newest updated: ${newestContentUpdated.error}`);
   }
 
   const legacyCounts = await Promise.all([
-    safeCountWhere(database, 'pm_product_types', [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, `pm_product_categories${suffix}`, [
-      ['tenantId', tenant.tenantId],
-    ]),
-    safeCountWhere(database, 'om_api_legacy_calls', [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, 'om_object_version_history', [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, `pm_entity_snapshots${suffix}`, [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, `form_types${suffix}`, [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, 'form_submissions', [['tenantId', tenant.tenantId]]),
-    safeCountWhere(database, 'om_aggregated_object_lists', [['tenantId', tenant.tenantId]]),
+    safeCountWhere(database, 'pm_product_types', [['tenantId', tenant.tenantId]], meter),
+    safeCountWhere(
+      database,
+      `pm_product_categories${suffix}`,
+      [['tenantId', tenant.tenantId]],
+      meter,
+    ),
+    safeCountWhere(database, 'om_api_legacy_calls', [['tenantId', tenant.tenantId]], meter),
+    safeCountWhere(
+      database,
+      'om_object_version_history',
+      [['tenantId', tenant.tenantId]],
+      meter,
+    ),
+    safeCountWhere(
+      database,
+      `pm_entity_snapshots${suffix}`,
+      [['tenantId', tenant.tenantId]],
+      meter,
+    ),
+    safeCountWhere(database, `form_types${suffix}`, [['tenantId', tenant.tenantId]], meter),
+    safeCountWhere(database, 'form_submissions', [['tenantId', tenant.tenantId]], meter),
+    safeCountWhere(
+      database,
+      'om_aggregated_object_lists',
+      [['tenantId', tenant.tenantId]],
+      meter,
+    ),
   ]);
   const legacyLabels = [
     'pm_product_types',
@@ -542,10 +611,15 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
   );
   let publicToPrivateLeftoverCount: number | null = 0;
   for (const app of privateApps) {
-    const result = await safeCountWhere(database, 'om_objects', [
-      ['cmsObjectType', app.appId],
-      ['tenantId', tenant.tenantId],
-    ]);
+    const result = await safeCountWhere(
+      database,
+      'om_objects',
+      [
+        ['cmsObjectType', app.appId],
+        ['tenantId', tenant.tenantId],
+      ],
+      meter,
+    );
     if (result.error) {
       publicToPrivateLeftoverCount = null;
       errors.push(`public-to-private leftovers (${app.appId}): ${result.error}`);
@@ -675,6 +749,7 @@ export async function collectTenantStats(tenant: RelayTenantSummary): Promise<Te
     migrationTag,
     scores: { adoption, engagement, legacyRisk, operationalRisk },
     errors: [...new Set(errors)],
+    collectionCost: meter.toSummary(),
   };
 }
 
@@ -685,28 +760,37 @@ export function tenantStatsDocumentId(projectId: string, tenantId: string): stri
 export async function getTenantStats(
   projectId: string,
   tenantId: string,
+  meter?: FirestoreCostMeter,
 ): Promise<TenantStats | null> {
   const snapshot = await getPlatformFirestore()
     .collection(TENANT_STATS_COLLECTION)
     .doc(tenantStatsDocumentId(projectId, tenantId))
     .get();
+  meter?.recordDocumentReads(1);
   if (!snapshot.exists) return null;
   return snapshot.data() as TenantStats;
 }
 
-export async function saveTenantStats(stats: TenantStats): Promise<void> {
+export async function saveTenantStats(
+  stats: TenantStats,
+  meter?: FirestoreCostMeter,
+): Promise<void> {
   await getPlatformFirestore()
     .collection(TENANT_STATS_COLLECTION)
     .doc(tenantStatsDocumentId(stats.projectId, stats.tenantId))
     .set(stats);
+  meter?.recordWrites(1);
 }
 
 /** Cheap dashboard rollup: reads only the cached statistics documents. */
-export async function getTenantStatsRollup(): Promise<TenantStatsRollup> {
+export async function getTenantStatsRollup(
+  meter?: FirestoreCostMeter,
+): Promise<TenantStatsRollup> {
   const snapshot = await getPlatformFirestore()
     .collection(TENANT_STATS_COLLECTION)
     .limit(1000)
     .get();
+  meter?.recordDocumentReads(snapshot.size);
 
   let applicationCount = 0;
   let totalObjectCount = 0;

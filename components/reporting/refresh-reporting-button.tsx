@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { apiRequest, ApiClientError } from '@/lib/client/api';
+import { formatNumber } from '@/lib/client/format';
+import type { FirestoreCostSummary } from '@/lib/shared/platform-types';
 
 export function RefreshReportingButton({
   disabled = false,
@@ -27,9 +29,12 @@ export function RefreshReportingButton({
       const result = await apiRequest<{
         tenantCount: number;
         tenantFailureCount: number;
+        cost: FirestoreCostSummary;
       }>('/api/platform/reporting/refresh', { method: 'POST' });
       setSuccessMessage(
-        `Snapshot updated for ${result.tenantCount} tenant(s), ${result.tenantFailureCount} partial failure(s).`,
+        `Snapshot updated for ${result.tenantCount} tenant(s), ${result.tenantFailureCount} partial failure(s). ${formatNumber(
+          result.cost.reads,
+        )} reads / ${formatNumber(result.cost.writes)} writes.`,
       );
       router.refresh();
     } catch (error) {

@@ -79,7 +79,9 @@ export default async function ApplicationUsagePage({
           <Card>
             <CardHeader
               title="Tenants using this application"
-              description={`${detail.tenants.length} tenant(s) in the cached statistics.`}
+              description={`${detail.tenants.length} tenant(s) in the cached statistics. This page read ${formatNumber(
+                detail.pageReads,
+              )} cached document(s).`}
             />
             <CardBody className="px-0 py-0">
               <div className="overflow-x-auto">

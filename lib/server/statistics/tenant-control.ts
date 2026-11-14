@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { FirestoreCostMeter } from '@/lib/server/firestore/cost-meter';
 import { getPlatformFirestore } from '@/lib/server/firebase/admin';
 import { getRelayTenant } from '@/lib/server/relay/relay-client';
 import type {
@@ -25,11 +26,13 @@ function latestTimestamp(values: Array<string | null>): string | null {
 export async function getTenantControl(
   projectId: string,
   tenantId: string,
+  meter?: FirestoreCostMeter,
 ): Promise<TenantControlRecord | null> {
   const snapshot = await getPlatformFirestore()
     .collection(TENANT_CONTROL_COLLECTION)
     .doc(controlDocumentId(projectId, tenantId))
     .get();
+  meter?.recordDocumentReads(1);
   if (!snapshot.exists) return null;
   return snapshot.data() as TenantControlRecord;
 }
@@ -117,8 +120,11 @@ export async function upsertTenantControl(input: {
 }
 
 /** Denormalizes the latest counts and scores onto the control record. */
-export async function syncTenantControlFromStats(stats: TenantStats): Promise<void> {
-  const existing = await getTenantControl(stats.projectId, stats.tenantId);
+export async function syncTenantControlFromStats(
+  stats: TenantStats,
+  meter?: FirestoreCostMeter,
+): Promise<void> {
+  const existing = await getTenantControl(stats.projectId, stats.tenantId, meter);
   const lastActivityAt = latestTimestamp([
     stats.newestObjectUpdatedAt,
     stats.newestContentUpdatedAt,
@@ -133,7 +139,7 @@ export async function syncTenantControlFromStats(stats: TenantStats): Promise<vo
   };
 
   if (!existing) {
-    const tenant = await getRelayTenant(stats.applicationId);
+    const tenant = await getRelayTenant(stats.applicationId, meter);
     if (!tenant) return;
     const now = new Date().toISOString();
     const record: TenantControlRecord = {
@@ -162,6 +168,7 @@ export async function syncTenantControlFromStats(stats: TenantStats): Promise<vo
       .collection(TENANT_CONTROL_COLLECTION)
       .doc(controlDocumentId(record.projectId, record.tenantId))
       .set(record);
+    meter?.recordWrites(1);
     return;
   }
 
@@ -178,4 +185,5 @@ export async function syncTenantControlFromStats(stats: TenantStats): Promise<vo
       },
       { merge: true },
     );
+  meter?.recordWrites(1);
 }

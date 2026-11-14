@@ -5,12 +5,14 @@ import { getFirestore, Timestamp, type Firestore, type Query } from 'firebase-ad
 
 import type { TenantStatus } from '@/lib/shared/constants';
 import type {
+  FirestoreCostSummary,
   PlatformReportMetrics,
   ReportSnapshot,
   SecretHealthCounts,
   TenantReportMetrics,
 } from '@/lib/shared/platform-types';
 import { getReportingConfig, type ReportingConfig } from '@/lib/server/env';
+import { FirestoreCostMeter } from '@/lib/server/firestore/cost-meter';
 import { getPlatformStore } from '@/lib/server/firestore/store-provider';
 import { buildSnapshotId, getReportingPeriod, type TenantRecord } from '@/lib/server/firestore/store';
 import { logWarn } from '@/lib/server/logging/logger';
@@ -86,9 +88,14 @@ function getReportingFirestoreForProject(projectId: string): Firestore {
   return getFirestore(app);
 }
 
-async function countDocuments(query: Query): Promise<number> {
+async function countDocuments(
+  query: Query,
+  meter?: FirestoreCostMeter,
+): Promise<number> {
   const snapshot = await query.count().get();
-  return snapshot.data().count;
+  const count = snapshot.data().count;
+  meter?.recordCountQuery(count);
+  return count;
 }
 
 function sanitizeCollectionError(error: unknown): string {
@@ -103,6 +110,7 @@ function sanitizeCollectionError(error: unknown): string {
 async function collectTenantMetrics(
   tenant: TenantRecord,
   previousLastError: string | null,
+  meter?: FirestoreCostMeter,
 ): Promise<{ metrics: TenantReportMetrics; errors: string[] }> {
   const targets = readTargets();
   const database = getReportingFirestoreForProject(tenant.cmsProjectId);
@@ -127,7 +135,7 @@ async function collectTenantMetrics(
 
   const objectCountTotal = await safeMetric(
     'objects.count',
-    () => countDocuments(database.collection(targets.objectsCollection)),
+    () => countDocuments(database.collection(targets.objectsCollection), meter),
     null,
   );
 
@@ -140,6 +148,9 @@ async function collectTenantMetrics(
         .select(targets.objectTypeField)
         .limit(500)
         .get();
+      // This bounded sample is the largest cost in the reporting refresh:
+      // every returned document is billed as one read.
+      meter?.recordDocumentReads(sample.size);
       const counts: Record<string, number> = {};
       for (const document of sample.docs) {
         const typeValue = document.get(targets.objectTypeField);
@@ -164,6 +175,7 @@ async function collectTenantMetrics(
           .collection(targets.apiRequestsCollection)
           .where('createdAt', '>=', Timestamp.fromDate(startOfMonth))
           .where(targets.apiVersionField, '==', 'v1'),
+        meter,
       ),
     null,
   );
@@ -176,6 +188,7 @@ async function collectTenantMetrics(
           .collection(targets.apiRequestsCollection)
           .where('createdAt', '>=', Timestamp.fromDate(startOfMonth))
           .where(targets.apiVersionField, '==', 'v2'),
+        meter,
       ),
     null,
   );
@@ -187,6 +200,7 @@ async function collectTenantMetrics(
         database
           .collection(targets.firstPartyRequestsCollection)
           .where('createdAt', '>=', Timestamp.fromDate(startOfMonth)),
+        meter,
       ),
     null,
   );
@@ -199,6 +213,7 @@ async function collectTenantMetrics(
           .collection(targets.firstPartyRequestsCollection)
           .where('createdAt', '>=', Timestamp.fromDate(startOfMonth))
           .where(targets.firstPartyErrorField, '==', true),
+        meter,
       ),
     null,
   );
@@ -210,6 +225,7 @@ async function collectTenantMetrics(
         database
           .collection(targets.usersCollection)
           .where('lastActiveAt', '>=', Timestamp.fromDate(thirtyDaysAgo)),
+        meter,
       ),
     null,
   );
@@ -221,6 +237,7 @@ async function collectTenantMetrics(
         .collection(targets.storageCollection)
         .doc(targets.storageDocumentId)
         .get();
+      meter?.recordDocumentReads(1);
       if (!snapshot.exists) return null;
       const value = snapshot.get('storageBytes');
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -360,6 +377,8 @@ export interface ReportingRefreshResult {
   tenantFailureCount: number;
   platformSnapshot: ReportSnapshot;
   tenantSnapshots: ReportSnapshot[];
+  /** Measured Firestore usage of the refresh, excluding the caller's audit write. */
+  cost: FirestoreCostSummary;
 }
 
 /**
@@ -371,7 +390,9 @@ export async function refreshReporting(options: {
 }): Promise<ReportingRefreshResult> {
   const config: ReportingConfig = getReportingConfig();
   const store = getPlatformStore();
+  const meter = new FirestoreCostMeter();
   const projects = await store.listProjects();
+  if (store.kind === 'firestore') meter.recordDocumentReads(projects.length);
 
   // In the project-based model the reporting unit is a managed project: its
   // aggregate collections are read with the project id. The legacy tenant
@@ -409,6 +430,9 @@ export async function refreshReporting(options: {
           }),
         )
       : await store.listTenants();
+  if (store.kind === 'firestore' && projects.length === 0) {
+    meter.recordDocumentReads(tenants.length);
+  }
 
   const period = getReportingPeriod();
   const collectedAt = new Date().toISOString();
@@ -423,7 +447,11 @@ export async function refreshReporting(options: {
     }
     try {
       const collected = await withTimeout(
-        collectTenantMetrics(tenant, tenant.provisioning.lastError ?? tenant.reporting.lastError),
+        collectTenantMetrics(
+          tenant,
+          tenant.provisioning.lastError ?? tenant.reporting.lastError,
+          meter,
+        ),
         config.tenantTimeoutMs,
         `Timed out after ${config.tenantTimeoutMs}ms.`,
       );
@@ -471,6 +499,11 @@ export async function refreshReporting(options: {
       },
       updatedAt: collectedAt,
     });
+    if (store.kind === 'firestore') {
+      // saveSnapshot is one write; updateTenant reads and rewrites the record.
+      meter.recordDocumentReads(1);
+      meter.recordWrites(2);
+    }
     tenantSnapshots.push(snapshot);
   }
 
@@ -522,6 +555,7 @@ export async function refreshReporting(options: {
     collectedAt,
   };
   await store.saveSnapshot(platformSnapshot);
+  if (store.kind === 'firestore') meter.recordWrites(1);
 
   return {
     period,
@@ -530,6 +564,7 @@ export async function refreshReporting(options: {
     tenantFailureCount,
     platformSnapshot,
     tenantSnapshots,
+    cost: meter.toSummary(),
   };
 }
 
