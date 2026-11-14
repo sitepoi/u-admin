@@ -11,6 +11,7 @@ import {
 } from 'firebase-admin/firestore';
 
 import { ApiError } from '@/lib/server/errors';
+import { getProjectAccessConfig } from '@/lib/server/env';
 import { getProjectFirebaseApp } from '@/lib/server/firebase/project-app';
 import type {
   RelayProjectSummary,
@@ -32,6 +33,18 @@ interface DecodedRelaySettings {
 
 function getRelayProjectId(): string {
   return (process.env.SITEPOI_RELAY_PROJECT_ID ?? '').trim() || 'sitepoi-relay';
+}
+
+/** Safe diagnostic: the service account email, never the private key. */
+function getServiceAccountEmailForDiagnostics(): string | null {
+  try {
+    const parsed = JSON.parse(getProjectAccessConfig().serviceAccountJson) as {
+      client_email?: unknown;
+    };
+    return typeof parsed.client_email === 'string' ? parsed.client_email : null;
+  } catch {
+    return null;
+  }
 }
 
 function decodeApplication(
@@ -124,10 +137,11 @@ export async function listRelayApplications(): Promise<RelayTenantSummary[]> {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     const message = error instanceof Error ? error.message : String(error);
+    const serviceAccountEmail = getServiceAccountEmailForDiagnostics();
     throw ApiError.projectAccessFailed(
       `Could not read sitepoi-relay project "${relayProjectId}" (${APPLICATIONS_COLLECTION}): ${message
         .replace(/\s+/g, ' ')
-        .slice(0, 300)}`,
+        .slice(0, 300)} Using service account: ${serviceAccountEmail ?? 'unknown'}.`,
       error,
     );
   }
